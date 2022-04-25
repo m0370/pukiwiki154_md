@@ -339,6 +339,7 @@ function edit_form($page, $postdata, $digest = FALSE, $b_template = TRUE)
 	global $notimeupdate;
 	global $_msg_edit_cancel_confirm, $_msg_edit_unloadbefore_message;
 	global $rule_page;
+	global $use_simplemde; // Pukiwiki Markdown
 
 	$script = get_base_uri();
 	// Newly generate $digest or not
@@ -385,6 +386,7 @@ EOD;
 	$s_page      = htmlsc($page);
 	$s_digest    = htmlsc($digest);
 	$s_postdata  = htmlsc($refer . $postdata);
+	$ss_postdata = remove_notemd($s_postdata); //Pukiwiki-Markdownで編集画面で#notemdを非表示にするため
 	$s_original  = isset($vars['original']) ? htmlsc($vars['original']) : $s_postdata;
 	$b_preview   = isset($vars['preview']); // TRUE when preview
 	$btn_preview = $b_preview ? $_btn_repreview : $_btn_preview;
@@ -407,6 +409,22 @@ EOD;
 			'&nbsp;';
 	}
 
+	// Pukiwiki-Markdown
+	$add_notemd = '';
+	if(get_notemd($postdata) || ! is_page($page, $clearcache = TRUE) /*新規ページはデフォルトでMarkdown*/) { $notemd_on = 'checked="checked"';};
+	if(isset($use_simplemde) && $use_simplemde) {
+		$simplemde = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+<script>
+    var simplemde = new SimpleMDE({ element: document.getElementById("editor"),showIcons:["table"],spellChecker: false });
+</script>';
+	}
+	$add_notemd = '<input onclick="window.editor()" type="checkbox" name="notemd" ' .
+		'id="_edit_form_notemd" value="true"' . $notemd_on . '>' . "\n" .
+		'   ' . '<label for="_edit_form_notemd"><span class="small">Markdown</span></label>' . "\n" .
+		$add_notemd .
+		'&nbsp;';
+
 	// 'margin-bottom', 'float:left', and 'margin-top'
 	// are for layout of 'cancel button'
 	$h_msg_edit_cancel_confirm = htmlsc($_msg_edit_cancel_confirm);
@@ -421,13 +439,14 @@ $template
   <input type="hidden" name="digest" value="$s_digest" />
   <input type="hidden" id="_msg_edit_cancel_confirm" value="$h_msg_edit_cancel_confirm" />
   <input type="hidden" id="_msg_edit_unloadbefore_message" value="$h_msg_edit_unloadbefore_message" />
-  <textarea name="msg" rows="$rows" cols="$cols">$s_postdata</textarea>
+  <textarea id="editor" name="msg" rows="$rows" cols="$cols">$ss_postdata</textarea>
   <br />
   <div style="float:left;">
    <input type="submit" name="preview" value="$btn_preview" accesskey="p" />
    <input type="submit" name="write"   value="$_btn_update" accesskey="s" />
    $add_top
    $add_notimestamp
+   $add_notemd
   </div>
   <textarea name="original" rows="1" cols="1" style="display:none">$s_original</textarea>
  </form>
@@ -437,6 +456,7 @@ $template
   <input type="submit" name="cancel" value="$_btn_cancel" accesskey="c" />
  </form>
 </div>
+$simplemde
 EOD;
 
 	$body .= '<ul><li><a href="' .

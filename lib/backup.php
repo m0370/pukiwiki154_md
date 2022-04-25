@@ -52,7 +52,7 @@ function make_backup($page, $is_delete, $wikitext)
 		$last_content = get_source($page, TRUE, TRUE);
 		$m = array();
 		$prev_author = null;
-		if (preg_match('/^#author\("([^"]+)","([^"]*)","([^"]*)"\)/m', $last_content, $m)) {
+		if (preg_match('/^!author\("([^"]+)","([^"]*)","([^"]*)"\)/m', $last_content, $m)) {
 			$prev_author = preg_replace('/^[^:]+:/', '', $m[2]);
 		}
 		if ($prev_author !== $auth_user) {

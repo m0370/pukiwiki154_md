@@ -454,7 +454,7 @@ function add_recent($page, $recentpage, $subject = '', $limit = 0)
 	flock($fp, LOCK_EX);
 	rewind($fp);
 	fputs($fp, '#freeze'    . "\n");
-	fputs($fp, '#norelated' . "\n"); // :)
+	fputs($fp, '!norelated' . "\n"); // :)
 	fputs($fp, join('', $lines));
 	flock($fp, LOCK_UN);
 	fclose($fp);
@@ -541,7 +541,7 @@ function lastmodified_add($update = '', $remove = '')
 		$line = get_recentchanges_line($_page, $time, $do_diff);
 		fputs($fp, $line);
 	}
-	fputs($fp, '#norelated' . "\n"); // :)
+	fputs($fp, '!norelated' . "\n"); // :)
 
 	flock($fp, LOCK_UN);
 	fclose($fp);
@@ -606,7 +606,7 @@ function put_lastmodified()
 		$line = get_recentchanges_line($page, $time, $do_diff);
 		fputs($fp, $line);
 	}
-	fputs($fp, '#norelated' . "\n"); // :)
+	fputs($fp, '!norelated' . "\n"); // :)
 	flock($fp, LOCK_UN);
 	fclose($fp);
 
@@ -1118,4 +1118,25 @@ function prepare_links_related($page) {
  */
 function get_htmlsafe_filename($filename) {
 	return preg_replace('#[^\w\/\.\-\$\%]#', '', $filename);
+}
+
+/**
+ * Markdown edit
+ */
+function add_notemd($wikitext)
+{
+	return "#notemd\n\n" . $wikitext;
+}
+
+function remove_notemd($wikitext)
+{
+	return preg_replace('/^\s*#notemd(\n|$)/m', '', $wikitext);
+}
+
+/**
+ * Get author info from wikitext
+ */
+function get_notemd($wikitext)
+{
+	return preg_match('/(^|\n)\#notemd\n/',$wikitext);
 }
