@@ -79,16 +79,16 @@ class InlineConverter
 			$converters = array(
 				'plugin',        // Inline plugins
 				'note',          // Footnotes
-				'url',           // URLs
-				'url_interwiki', // URLs (interwiki definition)
-				'mailto',        // mailto: URL schemes
-				'interwikiname', // InterWikiNames
+				// 'url',           // URLs
+				// 'url_interwiki', // URLs (interwiki definition)
+				// 'mailto',        // mailto: URL schemes
+				// 'interwikiname', // InterWikiNames
 				'autoalias',     // AutoAlias
 				'autolink',      // AutoLinks
 				'bracketname',   // BracketNames
 				'wikiname',      // WikiNames
-				'autoalias_a',   // AutoAlias(alphabet)
-				'autolink_a',    // AutoLinks(alphabet)
+				// 'autoalias_a',   // AutoAlias(alphabet)
+				// 'autolink_a',    // AutoLinks(alphabet)
 			);
 		}
 
@@ -114,13 +114,17 @@ class InlineConverter
 
 	function convert($string, $page)
 	{
+		global $markdown_safemode;
 		$this->page   = $page;
 		$this->result = array();
 
 		$string = preg_replace_callback('/' . $this->pattern . '/x' . get_preg_u(),
 			array(& $this, 'replace'), $string);
-
-		$arr = explode("\x08", make_line_rules(htmlsc($string)));
+		if ($markdown_safemode == 1){
+			$arr = explode("\x08", make_line_rules(htmlsc($string)));
+		} else {
+			$arr = explode("\x08", make_line_rules($string));
+		}
 		$retval = '';
 		while (! empty($arr)) {
 			$retval .= array_shift($arr) . array_shift($this->result);

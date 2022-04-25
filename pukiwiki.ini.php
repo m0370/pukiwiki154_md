@@ -53,7 +53,7 @@ define('PKWK_QUERY_STRING_MAX', 2000); // Bytes, 0 = OFF
 //   argsN+1
 //   }}
 //   #memo(This makes '#memo(foo)' to this)
-define('PKWKEXP_DISABLE_MULTILINE_PLUGIN_HACK', 1); // 1 = Disabled
+define('PKWKEXP_DISABLE_MULTILINE_PLUGIN_HACK', 0); // 1 = Disabled
 
 /////////////////////////////////////////////////
 // Language / Encoding settings
@@ -164,14 +164,14 @@ $nowikiname = 0;
 // Automatic link to existing pages
 
 // AutoLink minimum length of page name
-$autolink = 0; // Bytes, 0 = OFF (try 8)
+$autolink = 1; // Bytes, 0 = OFF (try 8)
 
 /////////////////////////////////////////////////
 // AutoAlias feature
 // Automatic link from specified word, to specifiled URI, page or InterWiki
 
 // AutoAlias minimum length of alias "from" word
-$autoalias = 0; // Bytes, 0 = OFF (try 8)
+$autoalias = 1; // Bytes, 0 = OFF (try 8)
 
 // Limit loading valid alias pairs
 $autoalias_max_words = 50; // pairs
@@ -652,3 +652,11 @@ $agents = array(
 
 	array('pattern'=>'#^#',	'profile'=>'default'),	// Sentinel
 );
+
+/////////////////////////////////////////////////
+// Pukiwiki Markdown
+// https://github.com/m0370/pukiwiki153_md
+// https://github.com/sparksuite/simplemde-markdown-editor/
+
+$markdown_safemode = 1; // Safemode 1:On, 0:Off
+$use_simplemde = 1; // simple Markdown editorを使用 1:Enable, 0:Disable
