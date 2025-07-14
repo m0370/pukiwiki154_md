@@ -27,36 +27,59 @@ function convert_html($lines)
 
 		return $body->toString();
 	} else {
-		// Markdown記法
-		foreach ( $lines as &$line ) {
-			$matches = array();
-			
-			$line = preg_replace('/(\#author\(.*\)|\#notemd|\#freeze)/', '', $line); // #author,#notemd,#freezeはMarkdown Parserに渡さない
-			if ( preg_match('/^\\!([a-zA-Z0-9_]+)(\\(([^\\)\\n]*)?\\))?/', $line, $matches) ) {
-				$plugin = $matches[1];
-				if ( exist_plugin_convert($plugin) ) {
-					$name = 'plugin_' . $matches[1] . '_convert';
-					$params = array();
-					if ( isset($matches[3]) ) {
-						$params = explode(',', $matches[3]);
-					}
-					$line = call_user_func_array($name, $params);
-				} else {
-					$line = "plugin ${plugin} failed.";
-				}
-			} else if (preg_match('/^\!(\[.*\])(\((https?\:\/\/[\-_\.\!\~\*\'\(\)a-zA-Z0-9\;\/\?\:\@\&\=\+\$\,\%\#]+\.)?(jpe?g|png|gif|webp)\))/u', $line, $matchimg)) {
-				// Markdown記法の画像の場合はmake_linkに渡さない
-			} else {
-				$line = preg_replace('/\[(.*?)\]\((https?\:\/\/[\-_\.\!\~\*\'\(\)a-zA-Z0-9\;\/\?\:\@\&\=\+\$\,\%\#]+)( )?(\".*\")?\)/u', "[[$1>$2]]", $line); // Markdown式リンクをPukiwiki式リンクに変換
-				//$line = preg_replace('/\[\[(.+)[>:](https?:\/\/[\-_\.\!\~\*\'\(\)a-zA-Z0-9\;\/\?\:\@\&\=\+\$\,\%\#]+)\]\]/u', "[$1]($2)", $line); // Pukiwiki式リンクをMarkdown式リンクに変換
-				$line = preg_replace('/\[\#[a-zA-Z0-9]{8}\]$/u', "", $line); // Pukiwiki式アンカーを非表示に
-				$line = make_link($line);
-				// ファイル読み込んだ場合に改行コードが末尾に付いていることがあるので削除
-				// 空白は削除しちゃだめなのでrtrim()は使ってはいけない
-			}
-		$line = str_replace(array("\r\n","\n","\r"), "", $line);
-		}
-		unset($line);
+               // Markdown記法
+               $count = count($lines);
+               $result_lines = array();
+               for ($i = 0; $i < $count; $i++) {
+                       $line = $lines[$i];
+                       $line = preg_replace('/(\#author\(.*\)|\#notemd|\#freeze)/', '', $line); // #author,#notemd,#freezeはMarkdown Parserに渡さない
+
+                       if (! PKWKEXP_DISABLE_MULTILINE_PLUGIN_HACK &&
+                           preg_match('/^![^{]+(\{\{+)\s*$/', $line, $m)) {
+                               $len = strlen($m[1]);
+                               $line .= "\r"; // Delimiter
+                               while ($i + 1 < $count) {
+                                       $next = preg_replace('/[\r\n]*$/', '', $lines[$i + 1]);
+                                       $i++;
+                                       if (preg_match('/\}{' . $len . '}/', $next)) {
+                                               $line .= $next;
+                                               break;
+                                       } else {
+                                               $line .= $next . "\r";
+                                       }
+                               }
+                       }
+
+                       $matches = array();
+                       if ( preg_match('/^!([^\(\{]+)(?:\(([^\r]*)\))?(\{*)/', $line, $matches) ) {
+                               $plugin = $matches[1];
+                               if ( exist_plugin_convert($plugin) ) {
+                                       $args = isset($matches[2]) ? $matches[2] : '';
+                                       $len = strlen($matches[3]);
+                                       if (! PKWKEXP_DISABLE_MULTILINE_PLUGIN_HACK &&
+                                           $len > 0 &&
+                                           preg_match('/\{{' . $len . '}\s*\r(.*)\r\}{' . $len . '}/', $line, $body)) {
+                                               $args .= "\r" . $body[1] . "\r";
+                                       }
+                                       $line = do_plugin_convert($plugin, $args);
+                               } else {
+                                       $line = "plugin ${plugin} failed.";
+                               }
+                       } else if (preg_match('/^\!(\[.*\])(\((https?\:\/\/[\-_\.\!\~\*\'\(\)a-zA-Z0-9\;\/\?\:\@\&\=\+\$\,\%\#]+\.)?(jpe?g|png|gif|webp)\))/u', $line, $matchimg)) {
+                               // Markdown記法の画像の場合はmake_linkに渡さない
+                       } else {
+                               $line = preg_replace('/\[(.*?)\]\((https?\:\/\/[\-_\.\!\~\*\'\(\)a-zA-Z0-9\;\/\?\:\@\&\=\+\$\,\%\#]+)( )?(\".*\")?\)/u', "[[$1>$2]]", $line); // Markdown式リンクをPukiwiki式リンクに変換
+                               //$line = preg_replace('/\[\[(.+)[>:](https?:\/\/[\-_\.\!\~\*\'\(\)a-zA-Z0-9\;\/\?\:\@\&\=\+\$\,\%\#]+)\]\]/u', "[$1]($2)", $line); // Pukiwiki式リンクをMarkdown式リンクに変換
+                               $line = preg_replace('/\[\#[a-zA-Z0-9]{8}\]$/u', "", $line); // Pukiwiki式アンカーを非表示に
+                               $line = make_link($line);
+                               // ファイル読み込んだ場合に改行コードが末尾に付いていることがあるので削除
+                               // 空白は削除しちゃだめなのでrtrim()は使ってはいけない
+                       }
+
+                       $line = str_replace(array("\r\n","\n","\r"), "", $line);
+                       $result_lines[] = $line;
+               }
+               $lines = $result_lines;
 	
 		$text = implode("\n", $lines);
 	
