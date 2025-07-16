@@ -156,7 +156,7 @@ function is_pagename_bytes_within_soft_limit($page)
 
 function is_pagename_bytes_within_hard_limit($page)
 {
-	return strlen($page) <= PKWK_PAGENAME_BYTES_SOFT_LIMIT;
+        return strlen($page) <= PKWK_PAGENAME_BYTES_HARD_LIMIT;
 }
 
 function page_exists_in_history($page)
