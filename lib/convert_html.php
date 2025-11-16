@@ -10,6 +10,52 @@
 // and related classes-and-functions
 
 /**
+ * Unified error message formatter for Markdown processing
+ *
+ * @param string $type Error type ('plugin_block', 'plugin_inline', 'parser')
+ * @param string $context Context information (plugin name, etc.)
+ * @param Exception $e Exception object (optional)
+ * @param bool $debug_mode Debug mode flag
+ * @return string Formatted error message HTML
+ */
+function format_markdown_error($type, $context, $e = null, $debug_mode = false)
+{
+	// HTML escape all user-provided content
+	$safe_context = htmlspecialchars($context, ENT_QUOTES, 'UTF-8');
+	$safe_message = $e ? htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') : '';
+
+	// Determine error message and CSS class based on type
+	switch ($type) {
+		case 'plugin_block':
+			$css_class = 'alert alert-warning';
+			$tag = 'div';
+			$message = 'Plugin "!' . $safe_context . '" failed';
+			break;
+		case 'plugin_inline':
+			$css_class = 'alert alert-warning';
+			$tag = 'span';
+			$message = 'Plugin &amp;' . $safe_context . ' failed';
+			break;
+		case 'parser':
+			$css_class = 'alert alert-danger';
+			$tag = 'div';
+			$message = 'Markdown parser error';
+			break;
+		default:
+			$css_class = 'alert alert-danger';
+			$tag = 'div';
+			$message = 'Unknown error';
+	}
+
+	// Add exception details in debug mode
+	if ($debug_mode && !empty($safe_message)) {
+		$message .= ': ' . $safe_message;
+	}
+
+	return '<' . $tag . ' class="' . $css_class . '">' . $message . '</' . $tag . '>';
+}
+
+/**
  * Validate URL scheme for Markdown image/link URLs
  *
  * @param string $url URL to validate
@@ -90,12 +136,7 @@ function process_block_plugin($line, &$debug_info)
 					$debug_info['plugin_calls'][] = $plugin;
 				}
 			} catch (Exception $e) {
-				$error_msg = htmlspecialchars($plugin, ENT_QUOTES, 'UTF-8');
-				$line = '<div class="alert alert-warning">Plugin "!' . $error_msg . '" failed';
-				if (!empty($markdown_debug_mode)) {
-					$line .= ': ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
-				}
-				$line .= '</div>';
+				$line = format_markdown_error('plugin_block', $plugin, $e, !empty($markdown_debug_mode));
 			}
 		} else {
 			$error_msg = htmlspecialchars($plugin, ENT_QUOTES, 'UTF-8');
@@ -318,11 +359,7 @@ function convert_html($lines)
 		return $result;
 
 	} catch (Exception $e) {
-		$error_msg = 'Markdown parser error';
-		if (!empty($markdown_debug_mode)) {
-			$error_msg .= ': ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
-		}
-		return '<div class="alert alert-danger">' . $error_msg . '</div>';
+		return format_markdown_error('parser', '', $e, !empty($markdown_debug_mode));
 	}
 }
 
