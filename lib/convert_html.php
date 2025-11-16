@@ -11,13 +11,22 @@
 
 function convert_html($lines)
 {
-	global $vars, $digest;
+	global $vars, $digest, $markdown_safemode, $use_parsedown_extra, $markdown_debug_mode;
 	static $contents_id = 0;
 
 	// Set digest
 	$digest = md5(join('', get_source($vars['page'])));
 
 	if (! is_array($lines)) $lines = explode("\n", $lines);
+
+	// デバッグモード用の情報収集
+	$debug_info = array();
+	if (!empty($markdown_debug_mode)) {
+		$debug_info['page'] = isset($vars['page']) ? $vars['page'] : 'unknown';
+		$debug_info['line_count'] = count($lines);
+		$debug_info['has_notemd'] = preg_grep('/^\#notemd/', $lines) ? true : false;
+		$debug_info['parsedown_version'] = class_exists('Parsedown') ? \Parsedown::version : 'not loaded';
+	}
 
 
 	if (! preg_grep('/^\#notemd/', $lines) ) {
@@ -52,7 +61,7 @@ function convert_html($lines)
 
                        $matches = array();
                        if ( preg_match('/^!([^\(\{]+)(?:\(([^\r]*)\))?(\{*)/', $line, $matches) ) {
-                               $plugin = $matches[1];
+                               $plugin = trim($matches[1]);
                                if ( exist_plugin_convert($plugin) ) {
                                        $args = isset($matches[2]) ? $matches[2] : '';
                                        $len = strlen($matches[3]);
@@ -61,35 +70,104 @@ function convert_html($lines)
                                            preg_match('/\{{' . $len . '}\s*\r(.*)\r\}{' . $len . '}/', $line, $body)) {
                                                $args .= "\r" . $body[1] . "\r";
                                        }
-                                       $line = do_plugin_convert($plugin, $args);
+                                       // プラグイン呼び出し（エラーハンドリング付き）
+                                       try {
+                                               $line = do_plugin_convert($plugin, $args);
+                                               if (!empty($markdown_debug_mode)) {
+                                                       $debug_info['plugin_calls'][] = $plugin;
+                                               }
+                                       } catch (Exception $e) {
+                                               $error_msg = htmlspecialchars($plugin, ENT_QUOTES, 'UTF-8');
+                                               $line = '<div class="alert alert-warning">Plugin "!' . $error_msg . '" failed';
+                                               if (!empty($markdown_debug_mode)) {
+                                                       $line .= ': ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
+                                               }
+                                               $line .= '</div>';
+                                       }
                                } else {
-                                       $line = "plugin ${plugin} failed.";
+                                       $error_msg = htmlspecialchars($plugin, ENT_QUOTES, 'UTF-8');
+                                       $line = '<div class="alert alert-warning">Plugin "!' . $error_msg . '" not found.</div>';
+                                       if (!empty($markdown_debug_mode)) {
+                                               $debug_info['plugin_errors'][] = $plugin;
+                                       }
                                }
-                       } else if (preg_match('/^\!(\[.*\])(\((https?\:\/\/[\-_\.\!\~\*\'\(\)a-zA-Z0-9\;\/\?\:\@\&\=\+\$\,\%\#]+\.)?(jpe?g|png|gif|webp)\))/u', $line, $matchimg)) {
+                       } else if (preg_match('/^\!(\[.*\])(\((https?\:\/\/[^\)]+\.(jpe?g|png|gif|webp))\))/ui', $line, $matchimg)) {
                                // Markdown記法の画像の場合はmake_linkに渡さない
                        } else {
-                               $line = preg_replace('/\[(.*?)\]\((https?\:\/\/[\-_\.\!\~\*\'\(\)a-zA-Z0-9\;\/\?\:\@\&\=\+\$\,\%\#]+)( )?(\".*\")?\)/u', "[[$1>$2]]", $line); // Markdown式リンクをPukiwiki式リンクに変換
-                               //$line = preg_replace('/\[\[(.+)[>:](https?:\/\/[\-_\.\!\~\*\'\(\)a-zA-Z0-9\;\/\?\:\@\&\=\+\$\,\%\#]+)\]\]/u', "[$1]($2)", $line); // Pukiwiki式リンクをMarkdown式リンクに変換
-                               $line = preg_replace('/\[\#[a-zA-Z0-9]{8}\]$/u', "", $line); // Pukiwiki式アンカーを非表示に
+                               // Markdown式リンクをPukiwiki式リンクに変換（改善版：より広範なURL対応）
+                               // RFC 3986準拠のURLパターンに対応
+                               $line = preg_replace_callback(
+                                       '/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)(?:\s+\"([^\"]+)\")?\)/u',
+                                       function($matches) {
+                                               $text = $matches[1];
+                                               $url = $matches[2];
+                                               // タイトルは無視（PukiWikiリンクに変換時）
+                                               return "[[${text}>${url}]]";
+                                       },
+                                       $line
+                               );
+
+                               // Pukiwiki式アンカーを非表示に
+                               $line = preg_replace('/\[\#[a-zA-Z0-9]{8}\]$/u', "", $line);
+
+                               // リンク処理
                                $line = make_link($line);
-                               // ファイル読み込んだ場合に改行コードが末尾に付いていることがあるので削除
-                               // 空白は削除しちゃだめなのでrtrim()は使ってはいけない
                        }
 
                        $line = str_replace(array("\r\n","\n","\r"), "", $line);
                        $result_lines[] = $line;
                }
                $lines = $result_lines;
-	
+
 		$text = implode("\n", $lines);
-	
-		$parsedown = new \Parsedown(); //Parsedown→ParsedownExtraに変更しても良い
-		$result = $parsedown
-		->setSafeMode(false) // safemode
-		->setBreaksEnabled(true) // enables automatic line breaks
-		->text($text);
-	
-		return $result;
+
+		// ParsedownまたはParsedownExtraの選択
+		try {
+			if (!empty($use_parsedown_extra) && class_exists('\ParsedownExtra')) {
+				$parsedown = new \ParsedownExtra();
+				if (!empty($markdown_debug_mode)) {
+					$debug_info['parser'] = 'ParsedownExtra ' . \ParsedownExtra::version;
+				}
+			} else {
+				$parsedown = new \Parsedown();
+				if (!empty($markdown_debug_mode)) {
+					$debug_info['parser'] = 'Parsedown ' . \Parsedown::version;
+				}
+			}
+
+			// Safemodeの設定（デフォルトは有効）
+			$safemode = isset($markdown_safemode) ? (bool)$markdown_safemode : true;
+
+			$result = $parsedown
+				->setSafeMode($safemode)
+				->setBreaksEnabled(true) // 改行を自動的に<br />に変換
+				->text($text);
+
+			// デバッグ情報を出力
+			if (!empty($markdown_debug_mode) && isset($debug_info['page'])) {
+				$debug_output = '<!-- Markdown Debug Info for ' . htmlspecialchars($debug_info['page'], ENT_QUOTES, 'UTF-8') . "\n";
+				$debug_output .= 'Parser: ' . $debug_info['parser'] . "\n";
+				$debug_output .= 'Safemode: ' . ($safemode ? 'ON' : 'OFF') . "\n";
+				$debug_output .= 'Lines: ' . $debug_info['line_count'] . "\n";
+				if (isset($debug_info['plugin_calls'])) {
+					$debug_output .= 'Plugin calls: ' . implode(', ', $debug_info['plugin_calls']) . "\n";
+				}
+				if (isset($debug_info['plugin_errors'])) {
+					$debug_output .= 'Plugin errors: ' . implode(', ', $debug_info['plugin_errors']) . "\n";
+				}
+				$debug_output .= '-->' . "\n";
+				$result = $debug_output . $result;
+			}
+
+			return $result;
+
+		} catch (Exception $e) {
+			$error_msg = 'Markdown parser error';
+			if (!empty($markdown_debug_mode)) {
+				$error_msg .= ': ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
+			}
+			return '<div class="alert alert-danger">' . $error_msg . '</div>';
+		}
 	}
 }
 
