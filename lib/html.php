@@ -380,8 +380,10 @@ EOD;
 
 		if (isset($vars['refer']) && $vars['refer'] != '') {
 			// 新規ページの場合、Markdownモードではリンクを追加しない
+			global $default_notemd;
 			$is_new_page = !is_page($page);
-			$is_markdown_mode = $is_new_page; // 新規ページはデフォルトでMarkdown
+			$default_mode = isset($default_notemd) ? $default_notemd : 1; // デフォルトは1（Markdown）
+			$is_markdown_mode = $is_new_page && $default_mode;
 
 			if (!$is_markdown_mode) {
 				// PukiWikiモードの場合のみリンクを追加
@@ -418,9 +420,13 @@ EOD;
 	}
 
 	// Pukiwiki-Markdown
+	global $default_notemd;
 	$add_notemd = '';
 	$simplemde = ''; // 初期化
-	if(get_notemd($postdata) || ! is_page($page, $clearcache = TRUE) /*新規ページはデフォルトでMarkdown*/) { $notemd_on = 'checked="checked"';};
+	$is_new_page = ! is_page($page, $clearcache = TRUE);
+	$default_mode = isset($default_notemd) ? $default_notemd : 1; // デフォルトは1（Markdown）
+	// 既存ページは保存されている設定、新規ページはdefault_notemdの設定に従う
+	if(get_notemd($postdata) || ($is_new_page && $default_mode)) { $notemd_on = 'checked="checked"';};
 	if(isset($use_simplemde) && $use_simplemde) {
 		// SimpleMDE Markdown Editor (バージョン固定 + SRI対応)
 		// Note: オフライン環境で使用する場合は、これらのファイルをローカルにダウンロードし、
