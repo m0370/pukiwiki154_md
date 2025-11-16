@@ -120,7 +120,12 @@ class InlineConverter
 
 		$string = preg_replace_callback('/' . $this->pattern . '/x' . get_preg_u(),
 			array(& $this, 'replace'), $string);
-		if ($markdown_safemode == 1){
+
+		// Safemodeの判定（デフォルトは有効）
+		// 0以外はすべて有効として扱う（セキュリティ優先）
+		$is_safemode = !isset($markdown_safemode) || ($markdown_safemode !== 0);
+
+		if ($is_safemode) {
 			$arr = explode("\x08", make_line_rules(htmlsc($string)));
 		} else {
 			$arr = explode("\x08", make_line_rules($string));

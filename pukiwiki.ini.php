@@ -658,7 +658,24 @@ $agents = array(
 // https://github.com/m0370/pukiwiki153_md
 // https://github.com/sparksuite/simplemde-markdown-editor/
 
-$markdown_safemode = 1; // Safemode 1:On, 0:Off
-$use_simplemde = 1; // simple Markdown editorを使用 1:Enable, 0:Disable
-$use_parsedown_extra = 1; // ParsedownExtraを使用（テーブル、脚注など） 1:Enable, 0:Disable
-$markdown_debug_mode = 0; // Markdownデバッグモード 1:Enable, 0:Disable
+// Markdown Safemode（セーフモード）
+// 1:On（推奨） - XSS攻撃を防ぐため、Markdown内の生HTML埋め込みを無効化
+// 0:Off - 生HTMLの埋め込みを許可（セキュリティリスクあり、信頼できるユーザーのみの環境で使用）
+// デフォルト値は1（有効）です。セキュリティ上の理由から、0に変更することは推奨しません。
+$markdown_safemode = 1;
+
+// SimpleMDE Markdown Editor
+// 1:Enable - リアルタイムプレビュー機能付きMarkdownエディタを使用
+// 0:Disable - 標準のテキストエリアを使用
+$use_simplemde = 1;
+
+// ParsedownExtra（拡張Markdown記法）
+// 1:Enable - テーブル、脚注、定義リストなどの拡張記法が使用可能
+// 0:Disable - 基本的なMarkdown記法のみ使用
+$use_parsedown_extra = 1;
+
+// Markdownデバッグモード
+// 1:Enable - HTMLコメントとして詳細なデバッグ情報を出力（開発時のみ使用）
+// 0:Disable（推奨） - 本番環境では必ず無効にしてください
+// デバッグモードを有効にすると、サーバー情報が露出する可能性があります。
+$markdown_debug_mode = 0;
