@@ -9,6 +9,29 @@
 // function 'convert_html()', wiki text parser
 // and related classes-and-functions
 
+/**
+ * Validate URL scheme for Markdown image/link URLs
+ *
+ * @param string $url URL to validate
+ * @return bool True if URL has safe scheme (http/https only)
+ */
+function is_safe_markdown_url($url)
+{
+	// Parse URL
+	$parsed = parse_url($url);
+
+	// URLパースに失敗した場合は拒否
+	if ($parsed === false || !isset($parsed['scheme'])) {
+		return false;
+	}
+
+	// スキームのホワイトリストチェック（http/httpsのみ許可）
+	$safe_schemes = array('http', 'https');
+	$scheme = strtolower($parsed['scheme']);
+
+	return in_array($scheme, $safe_schemes, true);
+}
+
 function convert_html($lines)
 {
 	global $vars, $digest, $markdown_safemode, $use_parsedown_extra, $markdown_debug_mode;
@@ -91,16 +114,40 @@ function convert_html($lines)
                                                $debug_info['plugin_errors'][] = $plugin;
                                        }
                                }
-                       } else if (preg_match('/^\!(\[.*\])(\((https?\:\/\/[^\)]+\.(jpe?g|png|gif|webp))\))/ui', $line, $matchimg)) {
-                               // Markdown記法の画像の場合はmake_linkに渡さない
+                       } else if (preg_match('/^\!\[([^\]]*)\]\(([^\)]+)\)/u', $line, $matchimg)) {
+                               // Markdown記法の画像の場合
+                               $img_url = trim($matchimg[2]);
+
+                               // URLスキームの安全性チェック
+                               if (!is_safe_markdown_url($img_url)) {
+                                       // 危険なスキーム（javascript:等）を検出
+                                       $line = '<div class="alert alert-warning">Unsafe image URL scheme detected. Only http/https are allowed.</div>';
+                                       if (!empty($markdown_debug_mode)) {
+                                               $debug_info['security_warnings'][] = 'Unsafe image URL: ' . htmlspecialchars(substr($img_url, 0, 50), ENT_QUOTES, 'UTF-8');
+                                       }
+                               }
+                               // 安全なURLの場合はmake_linkに渡さない（Parsedownに任せる）
                        } else {
                                // Markdown式リンクをPukiwiki式リンクに変換（改善版：より広範なURL対応）
-                               // RFC 3986準拠のURLパターンに対応
+                               // RFC 3986準拠のURLパターンに対応 + セキュリティチェック
                                $line = preg_replace_callback(
-                                       '/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)(?:\s+\"([^\"]+)\")?\)/u',
-                                       function($matches) {
+                                       '/\[([^\]]+)\]\(([^\s\)]+)(?:\s+\"([^\"]+)\")?\)/u',
+                                       function($matches) use (&$debug_info, $markdown_debug_mode) {
                                                $text = $matches[1];
                                                $url = $matches[2];
+
+                                               // URLスキームの安全性チェック
+                                               if (!is_safe_markdown_url($url)) {
+                                                       // 危険なスキームを検出した場合は警告を表示
+                                                       if (!empty($markdown_debug_mode)) {
+                                                               if (!isset($debug_info['security_warnings'])) {
+                                                                       $debug_info['security_warnings'] = array();
+                                                               }
+                                                               $debug_info['security_warnings'][] = 'Unsafe link URL: ' . htmlspecialchars(substr($url, 0, 50), ENT_QUOTES, 'UTF-8');
+                                                       }
+                                                       return '<span class="alert alert-warning">[Invalid URL]</span>';
+                                               }
+
                                                // タイトルは無視（PukiWikiリンクに変換時）
                                                return "[[${text}>${url}]]";
                                        },
@@ -155,6 +202,10 @@ function convert_html($lines)
 				if (isset($debug_info['plugin_errors'])) {
 					$debug_output .= 'Plugin errors: ' . implode(', ', $debug_info['plugin_errors']) . "\n";
 				}
+				if (isset($debug_info['security_warnings'])) {
+					$debug_output .= 'Security warnings: ' . implode(', ', $debug_info['security_warnings']) . "\n";
+				}
+				$debug_output .= 'WARNING: Debug mode is enabled. Disable in production!' . "\n";
 				$debug_output .= '-->' . "\n";
 				$result = $debug_output . $result;
 			}
