@@ -54,8 +54,11 @@ Pukiwiki ではどうしても書き方が馴染めないと言う人が少な�
 
     $use_simplemde = 1;
         SimpleMDEエディタの使用設定
-        1: 有効 - リアルタイムプレビュー機能付きエディタを使用
+        1: 有効 - リアルタイムプレビュー機能付きエディタを使用（CDN経由）
         0: 無効 - 標準のテキストエリアを使用
+
+        Note: デフォルトではCDN（https://cdn.jsdelivr.net）経由でSimpleMDEを読み込みます。
+              オフライン環境で使用する場合は、下記「SimpleMDEのローカル化」を参照してください。
 
     $use_parsedown_extra = 1;
         ParsedownExtraの使用設定（拡張Markdown記法）
@@ -95,6 +98,43 @@ ParsedownExtraで使える拡張Markdown記法
     デバッグモード有効時は、エラーの原因を具体的に表示
     Markdownパーサーのエラーも適切にキャッチして表示
 
+SimpleMDEのローカル化
+
+SimpleMDEエディタはデフォルトでCDN（https://cdn.jsdelivr.net）経由で読み込まれますが、
+オフライン環境で使用する場合や、CDN依存を避けたい場合は、ローカルにファイルを配置できます。
+
+    手順:
+
+    1. SimpleMDE 1.11.2をダウンロード
+        https://github.com/sparksuite/simplemde-markdown-editor/releases/tag/1.11.2
+        から以下のファイルをダウンロード:
+        - simplemde.min.css
+        - simplemde.min.js
+
+    2. ファイルを配置
+        ダウンロードしたファイルをskin/simplemde/ディレクトリなどに配置
+        例: skin/simplemde/simplemde.min.css
+            skin/simplemde/simplemde.min.js
+
+    3. lib/html.phpを編集
+        415行目付近のSimpleMDE読み込み部分を以下のように変更:
+
+        変更前:
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.css" ...>
+        <script src="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.js" ...>
+
+        変更後:
+        <link rel="stylesheet" href="skin/simplemde/simplemde.min.css">
+        <script src="skin/simplemde/simplemde.min.js">
+
+        Note: ローカル配置の場合、integrity属性とcrossorigin属性は不要なため削除してください。
+
+    メリット:
+    - オフライン環境での使用が可能
+    - CDN障害の影響を受けない
+    - プライバシー保護（外部サーバーへの接続なし）
+    - ページ読み込み速度の向上（LAN内配信の場合）
+
 既存のPukiwikiからの引っ越しも可能
 
 この、ページ毎に従来のPukiwiki記法とMarkdown記法のいずれかを選んで使い分けることができるという方式で何が有利かというと、既存ページのwikiフォルダはそのままに設定ファイルなどを書き換えれば、今まで使っていたPukiwikiがそのままMarkdownも併用できるようになるという点です。全てのページがMarkdownしか使えないのは全ページの書き換えが必要だったので、新規に設置するPukiwikiにはよくても既存の稼働しているPukiwikiからの引っ越しには不向きでした。
@@ -104,6 +144,46 @@ ParsedownExtraで使える拡張Markdown記法
 ----
 
 修正履歴
+
+2025-11-16 (Phase 4改良 - SimpleMDE改善)
+    [セキュリティ強化]
+    - SimpleMDEをバージョン固定（1.11.2）に変更
+        * CDN URLを "latest" から明示的なバージョン指定に変更
+        * 予期しないバージョン更新による互換性問題を防止
+    - SRI (Subresource Integrity) 対応
+        * CSSとJavaScriptにintegrity属性を追加
+        * CDN改ざん検知によるセキュリティ向上
+        * crossorigin属性の追加
+
+    [改善]
+    - SimpleMDE初期化にエラーハンドリングを追加
+        * try-catch構文で例外をキャッチ
+        * CDN読み込み失敗時のフォールバック処理
+        * コンソールへの警告/エラーメッセージ出力
+    - オフライン環境対応のドキュメント追加
+        * SimpleMDEローカル化手順の詳細説明
+        * ファイル配置とlib/html.php編集方法
+        * オフライン使用のメリット説明
+
+2025-11-16 (Phase 3改良 - セキュリティ強化)
+    [セキュリティ強化]
+    - Markdown内の画像・リンクURLスキーム検証機能を追加
+        * is_safe_markdown_url()関数を実装
+        * ホワイトリスト方式（http/httpsのみ許可）
+        * javascript:, data:, file:などの危険なスキームをブロック
+        * 不正なURLはエラーメッセージを表示
+    - Safemodeのデフォルト動作を安全側に変更
+        * 未設定時や不正値の場合は自動的に有効化
+        * セキュリティ優先の設計に改善
+    - デバッグモードにセキュリティ警告を追加
+        * ブロックされたURLを追跡
+        * HTMLコメントで詳細情報を出力
+
+    [ドキュメント改善]
+    - pukiwiki.ini.phpの設定コメントを強化
+        * セキュリティリスクに関する警告を追加
+        * 各設定項目の推奨値を明記
+        * デバッグモードの本番環境使用に関する注意事項
 
 2025-11-16 (Phase 2改良)
     [機能追加]
