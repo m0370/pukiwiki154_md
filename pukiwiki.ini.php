@@ -664,6 +664,12 @@ $agents = array(
 // デフォルト値は1（有効）です。セキュリティ上の理由から、0に変更することは推奨しません。
 $markdown_safemode = 1;
 
+// 新規ページのデフォルトモード
+// 1:Markdown - 新規ページ作成時、デフォルトでMarkdownモードを有効にする
+// 0:PukiWiki - 新規ページ作成時、デフォルトでPukiWiki記法モードにする
+// この設定は新規ページ作成時のみ適用されます。既存ページの編集には影響しません。
+$default_notemd = 1;
+
 // SimpleMDE Markdown Editor
 // 1:Enable - リアルタイムプレビュー機能付きMarkdownエディタを使用
 // 0:Disable - 標準のテキストエリアを使用
