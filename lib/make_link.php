@@ -310,13 +310,19 @@ EOD;
 			} catch (Exception $e) {
 				// Plugin execution failed with exception
 				global $markdown_debug_mode;
-				$error_msg = htmlsc($this->name);
-				$str = '<span class="error">Plugin &amp;' . $error_msg . ' failed';
-				if (!empty($markdown_debug_mode)) {
-					$str .= ': ' . htmlsc($e->getMessage());
+				// Use unified error formatter if available, otherwise fallback to inline error
+				if (function_exists('format_markdown_error')) {
+					return format_markdown_error('plugin_inline', $this->name, $e, !empty($markdown_debug_mode));
+				} else {
+					// Fallback for compatibility
+					$error_msg = htmlsc($this->name);
+					$str = '<span class="alert alert-warning">Plugin &amp;' . $error_msg . ' failed';
+					if (!empty($markdown_debug_mode)) {
+						$str .= ': ' . htmlsc($e->getMessage());
+					}
+					$str .= '</span>';
+					return $str;
 				}
-				$str .= '</span>';
-				return $str;
 			}
 		}
 
