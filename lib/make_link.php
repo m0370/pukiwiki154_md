@@ -304,8 +304,21 @@ EOD;
 		$str = FALSE;
 
 		// Try to call the plugin
-		if (exist_plugin_inline($this->name))
-			$str = do_plugin_inline($this->name, $this->param, $body);
+		if (exist_plugin_inline($this->name)) {
+			try {
+				$str = do_plugin_inline($this->name, $this->param, $body);
+			} catch (Exception $e) {
+				// Plugin execution failed with exception
+				global $markdown_debug_mode;
+				$error_msg = htmlsc($this->name);
+				$str = '<span class="error">Plugin &amp;' . $error_msg . ' failed';
+				if (!empty($markdown_debug_mode)) {
+					$str .= ': ' . htmlsc($e->getMessage());
+				}
+				$str .= '</span>';
+				return $str;
+			}
+		}
 
 		if ($str !== FALSE) {
 			return $str; // Succeed
