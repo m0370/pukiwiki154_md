@@ -413,10 +413,26 @@ EOD;
 	$add_notemd = '';
 	if(get_notemd($postdata) || ! is_page($page, $clearcache = TRUE) /*新規ページはデフォルトでMarkdown*/) { $notemd_on = 'checked="checked"';};
 	if(isset($use_simplemde) && $use_simplemde) {
-		$simplemde = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
-<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+		// SimpleMDE Markdown Editor (バージョン固定 + SRI対応)
+		// Note: オフライン環境で使用する場合は、これらのファイルをローカルにダウンロードし、
+		//       skin/ディレクトリなどに配置してパスを変更してください。
+		$simplemde = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.css" integrity="sha384-f7LuOmJzT8v4YcZXJo0xhhoOJKrr0iP9wt+EcgVvMk+SVPW9vFHQDLbZzqg6zb7S" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.js" integrity="sha384-GsZlJqPK18Hxv92E73p5l4ww8i7nVjMeP5xvT6f1hFR9nQm3g5/0J8b9gVvoZtq1" crossorigin="anonymous"></script>
 <script>
-    var simplemde = new SimpleMDE({ element: document.getElementById("editor"),showIcons:["table"],spellChecker: false });
+    // SimpleMDE初期化（エラーハンドリング付き）
+    try {
+        if (typeof SimpleMDE !== "undefined") {
+            var simplemde = new SimpleMDE({
+                element: document.getElementById("editor"),
+                showIcons: ["table"],
+                spellChecker: false
+            });
+        } else {
+            console.warn("SimpleMDE failed to load. Using standard textarea.");
+        }
+    } catch (e) {
+        console.error("SimpleMDE initialization error:", e);
+    }
 </script>';
 	}
 	$add_notemd = '<input onclick="window.editor()" type="checkbox" name="notemd" ' .

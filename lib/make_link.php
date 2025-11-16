@@ -120,7 +120,12 @@ class InlineConverter
 
 		$string = preg_replace_callback('/' . $this->pattern . '/x' . get_preg_u(),
 			array(& $this, 'replace'), $string);
-		if ($markdown_safemode == 1){
+
+		// Safemodeの判定（デフォルトは有効）
+		// 0以外はすべて有効として扱う（セキュリティ優先）
+		$is_safemode = !isset($markdown_safemode) || ($markdown_safemode !== 0);
+
+		if ($is_safemode) {
 			$arr = explode("\x08", make_line_rules(htmlsc($string)));
 		} else {
 			$arr = explode("\x08", make_line_rules($string));
@@ -299,8 +304,27 @@ EOD;
 		$str = FALSE;
 
 		// Try to call the plugin
-		if (exist_plugin_inline($this->name))
-			$str = do_plugin_inline($this->name, $this->param, $body);
+		if (exist_plugin_inline($this->name)) {
+			try {
+				$str = do_plugin_inline($this->name, $this->param, $body);
+			} catch (Exception $e) {
+				// Plugin execution failed with exception
+				global $markdown_debug_mode;
+				// Use unified error formatter if available, otherwise fallback to inline error
+				if (function_exists('format_markdown_error')) {
+					return format_markdown_error('plugin_inline', $this->name, $e, !empty($markdown_debug_mode));
+				} else {
+					// Fallback for compatibility
+					$error_msg = htmlsc($this->name);
+					$str = '<span class="alert alert-warning">Plugin &amp;' . $error_msg . ' failed';
+					if (!empty($markdown_debug_mode)) {
+						$str .= ': ' . htmlsc($e->getMessage());
+					}
+					$str .= '</span>';
+					return $str;
+				}
+			}
+		}
 
 		if ($str !== FALSE) {
 			return $str; // Succeed
