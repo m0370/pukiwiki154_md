@@ -653,10 +653,12 @@ $agents = array(
 	array('pattern'=>'#^#',	'profile'=>'default'),	// Sentinel
 );
 
-///////////////////////////////////////////////// 	
-// Pukiwiki Markdown 	
-// https://github.com/m0370/pukiwiki153_md 	
-// https://github.com/sparksuite/simplemde-markdown-editor/ 	
-	
-$markdown_safemode = 1; // Safemode 1:On, 0:Off 	
+/////////////////////////////////////////////////
+// Pukiwiki Markdown
+// https://github.com/m0370/pukiwiki153_md
+// https://github.com/sparksuite/simplemde-markdown-editor/
+
+$markdown_safemode = 1; // Safemode 1:On, 0:Off
 $use_simplemde = 1; // simple Markdown editorを使用 1:Enable, 0:Disable
+$use_parsedown_extra = 1; // ParsedownExtraを使用（テーブル、脚注など） 1:Enable, 0:Disable
+$markdown_debug_mode = 0; // Markdownデバッグモード 1:Enable, 0:Disable
