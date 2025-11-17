@@ -436,45 +436,77 @@ EOD;
 <script src="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.js" integrity="sha384-GsZlJqPK18Hxv92E73p5l4ww8i7nVjMeP5xvT6f1hFR9nQm3g5/0J8b9gVvoZtq1" crossorigin="anonymous"></script>
 <script>
     // SimpleMDE初期化（エラーハンドリング付き）
-    // Markdownチェックボックスの状態を確認
-    document.addEventListener("DOMContentLoaded", function() {
+    // グローバル変数でSimpleMDEインスタンスを保持
+    var simpleMDEInstance = null;
+
+    function initSimpleMDE() {
         var notemdCheckbox = document.getElementById("_edit_form_notemd");
         var editorElement = document.getElementById("editor");
-        var simpleMDEInstance = null;
 
-        function initSimpleMDE() {
-            if (notemdCheckbox && notemdCheckbox.checked && editorElement) {
-                try {
-                    if (typeof SimpleMDE !== "undefined" && !simpleMDEInstance) {
-                        simpleMDEInstance = new SimpleMDE({
-                            element: editorElement,
-                            showIcons: ["table"],
-                            spellChecker: false
-                        });
-                    }
-                } catch (e) {
-                    console.error("SimpleMDE initialization error:", e);
-                }
-            } else if (simpleMDEInstance) {
-                // Markdownモードがオフの場合はSimpleMDEを削除
-                simpleMDEInstance.toTextArea();
-                simpleMDEInstance = null;
-            }
+        if (!notemdCheckbox || !editorElement) {
+            console.warn("SimpleMDE: checkbox or editor element not found");
+            return;
         }
 
-        // 初期化
-        initSimpleMDE();
+        if (notemdCheckbox.checked) {
+            // Markdownモードの場合
+            try {
+                if (typeof SimpleMDE !== "undefined" && !simpleMDEInstance) {
+                    simpleMDEInstance = new SimpleMDE({
+                        element: editorElement,
+                        showIcons: ["table"],
+                        spellChecker: false
+                    });
+                    console.log("SimpleMDE initialized successfully");
+                }
+            } catch (e) {
+                console.error("SimpleMDE initialization error:", e);
+            }
+        } else {
+            // Markdownモードがオフの場合はSimpleMDEを削除
+            if (simpleMDEInstance) {
+                simpleMDEInstance.toTextArea();
+                simpleMDEInstance = null;
+                console.log("SimpleMDE destroyed");
+            }
+        }
+    }
 
-        // チェックボックスの変更を監視
+    // ライブラリの読み込み完了後に初期化
+    if (typeof SimpleMDE !== "undefined") {
+        // SimpleMDEが既に読み込まれている場合
+        initSimpleMDE();
+    } else {
+        // SimpleMDEが読み込まれるのを待つ
+        document.addEventListener("DOMContentLoaded", function() {
+            // SimpleMDEの読み込みを待つ（最大3秒）
+            var maxWait = 30; // 100msごとに30回（3秒）
+            var checkCount = 0;
+            var checkInterval = setInterval(function() {
+                if (typeof SimpleMDE !== "undefined") {
+                    clearInterval(checkInterval);
+                    initSimpleMDE();
+                } else if (++checkCount >= maxWait) {
+                    clearInterval(checkInterval);
+                    console.warn("SimpleMDE library did not load within 3 seconds");
+                }
+            }, 100);
+        });
+    }
+
+    // チェックボックスの変更を監視
+    document.addEventListener("DOMContentLoaded", function() {
+        var notemdCheckbox = document.getElementById("_edit_form_notemd");
         if (notemdCheckbox) {
             notemdCheckbox.addEventListener("change", function() {
+                console.log("Markdown checkbox changed: " + this.checked);
                 initSimpleMDE();
             });
         }
     });
 </script>';
 	}
-	$add_notemd = '<input onclick="window.editor()" type="checkbox" name="notemd" ' .
+	$add_notemd = '<input type="checkbox" name="notemd" ' .
 		'id="_edit_form_notemd" value="true"' . $notemd_on . '>' . "\n" .
 		'   ' . '<label for="_edit_form_notemd"><span class="small">Markdown</span></label>' . "\n" .
 		$add_notemd .
