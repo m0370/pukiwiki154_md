@@ -420,32 +420,40 @@ EOD;
 	}
 
 	// Pukiwiki-Markdown
-	global $default_notemd;
+	global $default_notemd, $markdown_editor, $use_simplemde;
 	$add_notemd = '';
-	$simplemde = ''; // 初期化
+	$simplemde = ''; // エディタコード（変数名は後方互換性のため維持）
 	$is_new_page = ! is_page($page, $clearcache = TRUE);
 	$default_mode = isset($default_notemd) ? $default_notemd : 1; // デフォルトは1（Markdown）
 	// 既存ページは保存されている設定、新規ページはdefault_notemdの設定に従う
 	if(get_notemd($postdata) || ($is_new_page && $default_mode)) { $notemd_on = 'checked="checked"';};
-	if(isset($use_simplemde) && $use_simplemde) {
-		// SimpleMDE Markdown Editor (バージョン固定 + SRI対応)
-		// Note: オフライン環境で使用する場合は、これらのファイルをローカルにダウンロードし、
-		//       skin/ディレクトリなどに配置してパスを変更してください。
-		$simplemde = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.css" integrity="sha384-f7LuOmJzT8v4YcZXJo0xhhoOJKrr0iP9wt+EcgVvMk+SVPW9vFHQDLbZzqg6zb7S" crossorigin="anonymous">
+
+	// Markdownエディタの選択（後方互換性を考慮）
+	$selected_editor = 'none';
+	if (isset($markdown_editor)) {
+		$selected_editor = $markdown_editor;
+	} elseif (isset($use_simplemde) && $use_simplemde) {
+		$selected_editor = 'simplemde';
+	}
+
+	// 選択されたエディタに応じてコードを生成
+	switch ($selected_editor) {
+		case 'simplemde':
+			// SimpleMDE Markdown Editor (バージョン固定 + SRI対応)
+			$simplemde = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.css" integrity="sha384-f7LuOmJzT8v4YcZXJo0xhhoOJKrr0iP9wt+EcgVvMk+SVPW9vFHQDLbZzqg6zb7S" crossorigin="anonymous">
 <script src="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.js" integrity="sha384-GsZlJqPK18Hxv92E73p5l4ww8i7nVjMeP5xvT6f1hFR9nQm3g5/0J8b9gVvoZtq1" crossorigin="anonymous"></script>
 <script>
     // SimpleMDE初期化（エラーハンドリング付き）
-    // Markdownチェックボックスの状態を確認
     document.addEventListener("DOMContentLoaded", function() {
         var notemdCheckbox = document.getElementById("_edit_form_notemd");
         var editorElement = document.getElementById("editor");
-        var simpleMDEInstance = null;
+        var editorInstance = null;
 
-        function initSimpleMDE() {
+        function initEditor() {
             if (notemdCheckbox && notemdCheckbox.checked && editorElement) {
                 try {
-                    if (typeof SimpleMDE !== "undefined" && !simpleMDEInstance) {
-                        simpleMDEInstance = new SimpleMDE({
+                    if (typeof SimpleMDE !== "undefined" && !editorInstance) {
+                        editorInstance = new SimpleMDE({
                             element: editorElement,
                             showIcons: ["table"],
                             spellChecker: false
@@ -454,24 +462,111 @@ EOD;
                 } catch (e) {
                     console.error("SimpleMDE initialization error:", e);
                 }
-            } else if (simpleMDEInstance) {
-                // Markdownモードがオフの場合はSimpleMDEを削除
-                simpleMDEInstance.toTextArea();
-                simpleMDEInstance = null;
+            } else if (editorInstance) {
+                editorInstance.toTextArea();
+                editorInstance = null;
             }
         }
 
-        // 初期化
-        initSimpleMDE();
-
-        // チェックボックスの変更を監視
+        initEditor();
         if (notemdCheckbox) {
-            notemdCheckbox.addEventListener("change", function() {
-                initSimpleMDE();
-            });
+            notemdCheckbox.addEventListener("change", initEditor);
         }
     });
 </script>';
+			break;
+
+		case 'easymde':
+			// EasyMDE Markdown Editor (SimpleMDEの後継)
+			$simplemde = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+<script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+<script>
+    // EasyMDE初期化（エラーハンドリング付き）
+    document.addEventListener("DOMContentLoaded", function() {
+        var notemdCheckbox = document.getElementById("_edit_form_notemd");
+        var editorElement = document.getElementById("editor");
+        var editorInstance = null;
+
+        function initEditor() {
+            if (notemdCheckbox && notemdCheckbox.checked && editorElement) {
+                try {
+                    if (typeof EasyMDE !== "undefined" && !editorInstance) {
+                        editorInstance = new EasyMDE({
+                            element: editorElement,
+                            showIcons: ["table"],
+                            spellChecker: false,
+                            autosave: {
+                                enabled: true,
+                                uniqueId: "easymde_' . md5($page) . '",
+                                delay: 1000
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error("EasyMDE initialization error:", e);
+                }
+            } else if (editorInstance) {
+                editorInstance.toTextArea();
+                editorInstance = null;
+            }
+        }
+
+        initEditor();
+        if (notemdCheckbox) {
+            notemdCheckbox.addEventListener("change", initEditor);
+        }
+    });
+</script>';
+			break;
+
+		case 'tinymde':
+			// TinyMDE Markdown Editor (軽量版)
+			$simplemde = '<link rel="stylesheet" href="https://unpkg.com/tiny-markdown-editor/dist/tiny-mde.min.css">
+<script src="https://unpkg.com/tiny-markdown-editor/dist/tiny-mde.min.js"></script>
+<script>
+    // TinyMDE初期化（エラーハンドリング付き）
+    document.addEventListener("DOMContentLoaded", function() {
+        var notemdCheckbox = document.getElementById("_edit_form_notemd");
+        var editorElement = document.getElementById("editor");
+        var editorInstance = null;
+
+        function initEditor() {
+            if (notemdCheckbox && notemdCheckbox.checked && editorElement) {
+                try {
+                    if (typeof TinyMDE !== "undefined" && !editorInstance) {
+                        editorInstance = new TinyMDE.Editor({
+                            textarea: "editor"
+                        });
+                        var commandBar = new TinyMDE.CommandBar({
+                            element: editorElement.parentNode,
+                            editor: editorInstance
+                        });
+                    }
+                } catch (e) {
+                    console.error("TinyMDE initialization error:", e);
+                }
+            } else if (editorInstance) {
+                // TinyMDEのクリーンアップ
+                if (editorInstance.element) {
+                    editorInstance.element.style.display = "";
+                }
+                editorInstance = null;
+            }
+        }
+
+        initEditor();
+        if (notemdCheckbox) {
+            notemdCheckbox.addEventListener("change", initEditor);
+        }
+    });
+</script>';
+			break;
+
+		case 'none':
+		default:
+			// エディタなし（通常のtextarea）
+			$simplemde = '';
+			break;
 	}
 	$add_notemd = '<input onclick="window.editor()" type="checkbox" name="notemd" ' .
 		'id="_edit_form_notemd" value="true"' . $notemd_on . '>' . "\n" .
