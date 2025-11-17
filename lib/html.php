@@ -429,11 +429,11 @@ EOD;
 	// 既存ページは保存されている設定、新規ページはdefault_notemdの設定に従う
 	if(get_notemd($postdata) || ($is_new_page && $default_mode)) { $notemd_on = 'checked="checked"';};
 	if(isset($use_simplemde) && $use_simplemde) {
-		// SimpleMDE Markdown Editor (バージョン固定 + SRI対応)
-		// Note: オフライン環境で使用する場合は、これらのファイルをローカルにダウンロードし、
-		//       skin/ディレクトリなどに配置してパスを変更してください。
-		$simplemde = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.css" integrity="sha384-f7LuOmJzT8v4YcZXJo0xhhoOJKrr0iP9wt+EcgVvMk+SVPW9vFHQDLbZzqg6zb7S" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.js" integrity="sha384-GsZlJqPK18Hxv92E73p5l4ww8i7nVjMeP5xvT6f1hFR9nQm3g5/0J8b9gVvoZtq1" crossorigin="anonymous"></script>
+		// SimpleMDE Markdown Editor (ローカル配置)
+		// ローカル環境での高速読み込みのため、ローカルファイルを使用
+		// ファイル配置: skin/js/simplemde.min.{css,js}
+		$simplemde = '<link rel="stylesheet" href="' . SKIN_DIR . 'js/simplemde.min.css">
+<script src="' . SKIN_DIR . 'js/simplemde.min.js"></script>
 <script>
     // SimpleMDE初期化（エラーハンドリング付き）
     // グローバル変数でSimpleMDEインスタンスを保持
