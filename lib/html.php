@@ -423,6 +423,7 @@ EOD;
 	global $default_notemd;
 	$add_notemd = '';
 	$simplemde = ''; // 初期化
+	$notemd_on = ''; // Markdownチェックボックスの状態初期化
 	$is_new_page = ! is_page($page, $clearcache = TRUE);
 	$default_mode = isset($default_notemd) ? $default_notemd : 1; // デフォルトは1（Markdown）
 	// 既存ページは保存されている設定、新規ページはdefault_notemdの設定に従う
