@@ -378,8 +378,18 @@ $s_tpages
   <br />
 EOD;
 
-		if (isset($vars['refer']) && $vars['refer'] != '')
-			$refer = '[[' . strip_bracket($vars['refer']) . ']]' . "\n\n";
+		if (isset($vars['refer']) && $vars['refer'] != '') {
+			// 新規ページの場合、Markdownモードではリンクを追加しない
+			global $default_notemd;
+			$is_new_page = !is_page($page);
+			$default_mode = isset($default_notemd) ? $default_notemd : 1; // デフォルトは1（Markdown）
+			$is_markdown_mode = $is_new_page && $default_mode;
+
+			if (!$is_markdown_mode) {
+				// PukiWikiモードの場合のみリンクを追加
+				$refer = '[[' . strip_bracket($vars['refer']) . ']]' . "\n\n";
+			}
+		}
 	}
 
 	$r_page      = rawurlencode($page);
@@ -410,8 +420,13 @@ EOD;
 	}
 
 	// Pukiwiki-Markdown
+	global $default_notemd;
 	$add_notemd = '';
-	if(get_notemd($postdata) || ! is_page($page, $clearcache = TRUE) /*新規ページはデフォルトでMarkdown*/) { $notemd_on = 'checked="checked"';};
+	$simplemde = ''; // 初期化
+	$is_new_page = ! is_page($page, $clearcache = TRUE);
+	$default_mode = isset($default_notemd) ? $default_notemd : 1; // デフォルトは1（Markdown）
+	// 既存ページは保存されている設定、新規ページはdefault_notemdの設定に従う
+	if(get_notemd($postdata) || ($is_new_page && $default_mode)) { $notemd_on = 'checked="checked"';};
 	if(isset($use_simplemde) && $use_simplemde) {
 		// SimpleMDE Markdown Editor (バージョン固定 + SRI対応)
 		// Note: オフライン環境で使用する場合は、これらのファイルをローカルにダウンロードし、
@@ -420,19 +435,42 @@ EOD;
 <script src="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.js" integrity="sha384-GsZlJqPK18Hxv92E73p5l4ww8i7nVjMeP5xvT6f1hFR9nQm3g5/0J8b9gVvoZtq1" crossorigin="anonymous"></script>
 <script>
     // SimpleMDE初期化（エラーハンドリング付き）
-    try {
-        if (typeof SimpleMDE !== "undefined") {
-            var simplemde = new SimpleMDE({
-                element: document.getElementById("editor"),
-                showIcons: ["table"],
-                spellChecker: false
-            });
-        } else {
-            console.warn("SimpleMDE failed to load. Using standard textarea.");
+    // Markdownチェックボックスの状態を確認
+    document.addEventListener("DOMContentLoaded", function() {
+        var notemdCheckbox = document.getElementById("_edit_form_notemd");
+        var editorElement = document.getElementById("editor");
+        var simpleMDEInstance = null;
+
+        function initSimpleMDE() {
+            if (notemdCheckbox && notemdCheckbox.checked && editorElement) {
+                try {
+                    if (typeof SimpleMDE !== "undefined" && !simpleMDEInstance) {
+                        simpleMDEInstance = new SimpleMDE({
+                            element: editorElement,
+                            showIcons: ["table"],
+                            spellChecker: false
+                        });
+                    }
+                } catch (e) {
+                    console.error("SimpleMDE initialization error:", e);
+                }
+            } else if (simpleMDEInstance) {
+                // Markdownモードがオフの場合はSimpleMDEを削除
+                simpleMDEInstance.toTextArea();
+                simpleMDEInstance = null;
+            }
         }
-    } catch (e) {
-        console.error("SimpleMDE initialization error:", e);
-    }
+
+        // 初期化
+        initSimpleMDE();
+
+        // チェックボックスの変更を監視
+        if (notemdCheckbox) {
+            notemdCheckbox.addEventListener("change", function() {
+                initSimpleMDE();
+            });
+        }
+    });
 </script>';
 	}
 	$add_notemd = '<input onclick="window.editor()" type="checkbox" name="notemd" ' .
