@@ -670,16 +670,9 @@ $markdown_safemode = 1;
 // この設定は新規ページ作成時のみ適用されます。既存ページの編集には影響しません。
 $default_notemd = 1;
 
-// Markdownエディタの選択
-// 使用するMarkdownエディタを選択します。
-// 'simplemde' : SimpleMDE（デフォルト、280KB、開発停止だが安定）
-// 'easymde'   : EasyMDE（SimpleMDEの後継、280KB、自動保存・スペルチェック付き）
-// 'tinymde'   : TinyMDE（軽量60-70KB、モバイル対応優秀、シンプル）
-// 'none'      : エディタなし（通常のtextarea）
-$markdown_editor = 'simplemde';
-
-// 後方互換性のため$use_simplemdeも残す（非推奨、将来削除予定）
-// $markdown_editorが設定されている場合はそちらが優先されます
+// EasyMDE Markdown Editor (SimpleMDEの後継)
+// 1:Enable - リアルタイムプレビュー機能付きMarkdownエディタを使用
+// 0:Disable - 標準のテキストエリアを使用
 $use_simplemde = 1;
 
 // ParsedownExtra（拡張Markdown記法）
