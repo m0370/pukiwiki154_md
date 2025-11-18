@@ -428,11 +428,15 @@ EOD;
 	$default_mode = isset($default_notemd) ? $default_notemd : 1; // デフォルトは1（Markdown）
 	// 既存ページは保存されている設定、新規ページはdefault_notemdの設定に従う
 	if(get_notemd($postdata) || ($is_new_page && $default_mode)) { $notemd_on = 'checked="checked"';};
-	if(isset($use_simplemde) && $use_simplemde) {
-		// EasyMDE Markdown Editor (ローカル配置)
-		// ローカル環境での高速読み込みのため、ローカルファイルを使用
-		// ファイル配置: skin/js/easymde.min.{css,js}
-		$simplemde = '<link rel="stylesheet" href="' . SKIN_DIR . 'js/easymde.min.css">
+
+	// Markdownエディタの選択
+	$editor_choice = isset($markdown_editor) ? $markdown_editor : (isset($use_simplemde) && $use_simplemde ? 'easymde' : 'none');
+	switch ($editor_choice) {
+		case 'easymde':
+			// EasyMDE Markdown Editor (ローカル配置)
+			// ローカル環境での高速読み込みのため、ローカルファイルを使用
+			// ファイル配置: skin/js/easymde.min.{css,js}
+			$simplemde = '<link rel="stylesheet" href="' . SKIN_DIR . 'js/easymde.min.css">
 <script src="' . SKIN_DIR . 'js/easymde.min.js"></script>
 <script>
     // EasyMDE初期化（エラーハンドリング付き）
