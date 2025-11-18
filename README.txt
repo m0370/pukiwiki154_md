@@ -29,7 +29,7 @@ Pukiwiki ではどうしても書き方が馴染めないと言う人が少な�
     Markdown記法を使っているときでもプラグインが使用可能です。
         ブロックプラグインでは #plugin の代わりに !plugin の表記を用います。
     リンクはPukiwiki記法（[[リンク>URL]]）でもMarkdown記法（[リンク](URL)）でも使用可能です。
-    Pukiwiki記法の場合はCSSとjavascriptを各1行ずつ読み込むだけで簡単にビジュアルMarkdownエディタ「SimpleMDE」が使用可能で、書いたマークダウン書式はリアルタイムに反映されます。
+    Pukiwiki記法の場合はCSSとjavascriptを各1行ずつ読み込むだけで簡単にビジュアルMarkdownエディタ「EasyMDE」が使用可能で、書いたマークダウン書式はリアルタイムに反映されます。
         Pukiwiki記法で記載しているときは書式は反映されません。
         不要な場合は下記のpukiwiki.ini.phpで$use_simplemde = 0;を設定してください。
 
@@ -62,12 +62,12 @@ Pukiwiki ではどうしても書き方が馴染めないと言う人が少な�
               ページ編集画面で「Markdown」チェックボックスを使って切り替えることも可能です。
 
     $use_simplemde = 1;
-        SimpleMDEエディタの使用設定
-        1: 有効 - リアルタイムプレビュー機能付きエディタを使用（CDN経由）
+        EasyMDEエディタの使用設定（SimpleMDEの後継）
+        1: 有効 - リアルタイムプレビュー機能付きエディタを使用（ローカルファイル）
         0: 無効 - 標準のテキストエリアを使用
 
-        Note: デフォルトではCDN（https://cdn.jsdelivr.net）経由でSimpleMDEを読み込みます。
-              オフライン環境で使用する場合は、下記「SimpleMDEのローカル化」を参照してください。
+        Note: EasyMDE v2.20.0がローカルに配置されています（skin/js/easymde.min.{css,js}）。
+              SimpleMDEは2017年から開発停止のため、EasyMDEに移行しました。
 
     $use_parsedown_extra = 1;
         ParsedownExtraの使用設定（拡張Markdown記法）
@@ -107,34 +107,31 @@ ParsedownExtraで使える拡張Markdown記法
     デバッグモード有効時は、エラーの原因を具体的に表示
     Markdownパーサーのエラーも適切にキャッチして表示
 
-SimpleMDEのローカル化
+EasyMDEエディタ（ローカル配置）
 
-SimpleMDEエディタはデフォルトでCDN（https://cdn.jsdelivr.net）経由で読み込まれますが、
-オフライン環境で使用する場合や、CDN依存を避けたい場合は、ローカルにファイルを配置できます。
+EasyMDE v2.20.0が既にローカルに配置されています。SimpleMDEの後継プロジェクトとして、
+アクティブなメンテナンスとセキュリティアップデートが継続されています。
 
-    手順:
+    配置済みファイル:
+        - skin/js/easymde.min.css (v2.20.0, 13KB)
+        - skin/js/easymde.min.js (v2.20.0, 320KB)
 
-    1. SimpleMDE 1.11.2をダウンロード
-        https://github.com/sparksuite/simplemde-markdown-editor/releases/tag/1.11.2
-        から以下のファイルをダウンロード:
-        - simplemde.min.css
-        - simplemde.min.js
+    移行理由:
+        - SimpleMDEは2017年から開発停止
+        - EasyMDEは継続的にメンテナンスされている
+        - API互換性を維持（移行が容易）
+        - セキュリティアップデートとバグ修正
 
-    2. ファイルを配置
-        ダウンロードしたファイルをskin/simplemde/ディレクトリなどに配置
-        例: skin/simplemde/simplemde.min.css
-            skin/simplemde/simplemde.min.js
+    EasyMDEの更新手順（将来的に必要な場合）:
 
-    3. lib/html.phpを編集
-        415行目付近のSimpleMDE読み込み部分を以下のように変更:
+    1. 最新版をダウンロード
+        npm install easymde
+        または
+        https://github.com/Ionaru/easy-markdown-editor/releases
 
-        変更前:
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.css" ...>
-        <script src="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.js" ...>
-
-        変更後:
-        <link rel="stylesheet" href="skin/simplemde/simplemde.min.css">
-        <script src="skin/simplemde/simplemde.min.js">
+    2. ファイルを置き換え
+        node_modules/easymde/dist/easymde.min.css → skin/js/easymde.min.css
+        node_modules/easymde/dist/easymde.min.js → skin/js/easymde.min.js
 
         Note: ローカル配置の場合、integrity属性とcrossorigin属性は不要なため削除してください。
 

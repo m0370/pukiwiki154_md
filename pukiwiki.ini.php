@@ -670,7 +670,7 @@ $markdown_safemode = 1;
 // この設定は新規ページ作成時のみ適用されます。既存ページの編集には影響しません。
 $default_notemd = 1;
 
-// SimpleMDE Markdown Editor
+// EasyMDE Markdown Editor (SimpleMDEの後継)
 // 1:Enable - リアルタイムプレビュー機能付きMarkdownエディタを使用
 // 0:Disable - 標準のテキストエリアを使用
 $use_simplemde = 1;
