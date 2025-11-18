@@ -429,66 +429,66 @@ EOD;
 	// 既存ページは保存されている設定、新規ページはdefault_notemdの設定に従う
 	if(get_notemd($postdata) || ($is_new_page && $default_mode)) { $notemd_on = 'checked="checked"';};
 	if(isset($use_simplemde) && $use_simplemde) {
-		// SimpleMDE Markdown Editor (ローカル配置)
+		// EasyMDE Markdown Editor (ローカル配置)
 		// ローカル環境での高速読み込みのため、ローカルファイルを使用
-		// ファイル配置: skin/js/simplemde.min.{css,js}
-		$simplemde = '<link rel="stylesheet" href="' . SKIN_DIR . 'js/simplemde.min.css">
-<script src="' . SKIN_DIR . 'js/simplemde.min.js"></script>
+		// ファイル配置: skin/js/easymde.min.{css,js}
+		$simplemde = '<link rel="stylesheet" href="' . SKIN_DIR . 'js/easymde.min.css">
+<script src="' . SKIN_DIR . 'js/easymde.min.js"></script>
 <script>
-    // SimpleMDE初期化（エラーハンドリング付き）
-    // グローバル変数でSimpleMDEインスタンスを保持
-    var simpleMDEInstance = null;
+    // EasyMDE初期化（エラーハンドリング付き）
+    // グローバル変数でEasyMDEインスタンスを保持
+    var easyMDEInstance = null;
 
-    function initSimpleMDE() {
+    function initEasyMDE() {
         var notemdCheckbox = document.getElementById("_edit_form_notemd");
         var editorElement = document.getElementById("editor");
 
         if (!notemdCheckbox || !editorElement) {
-            console.warn("SimpleMDE: checkbox or editor element not found");
+            console.warn("EasyMDE: checkbox or editor element not found");
             return;
         }
 
         if (notemdCheckbox.checked) {
             // Markdownモードの場合
             try {
-                if (typeof SimpleMDE !== "undefined" && !simpleMDEInstance) {
-                    simpleMDEInstance = new SimpleMDE({
+                if (typeof EasyMDE !== "undefined" && !easyMDEInstance) {
+                    easyMDEInstance = new EasyMDE({
                         element: editorElement,
                         showIcons: ["table"],
                         spellChecker: false
                     });
-                    console.log("SimpleMDE initialized successfully");
+                    console.log("EasyMDE initialized successfully");
                 }
             } catch (e) {
-                console.error("SimpleMDE initialization error:", e);
+                console.error("EasyMDE initialization error:", e);
             }
         } else {
-            // Markdownモードがオフの場合はSimpleMDEを削除
-            if (simpleMDEInstance) {
-                simpleMDEInstance.toTextArea();
-                simpleMDEInstance = null;
-                console.log("SimpleMDE destroyed");
+            // Markdownモードがオフの場合はEasyMDEを削除
+            if (easyMDEInstance) {
+                easyMDEInstance.toTextArea();
+                easyMDEInstance = null;
+                console.log("EasyMDE destroyed");
             }
         }
     }
 
     // ライブラリの読み込み完了後に初期化
-    if (typeof SimpleMDE !== "undefined") {
-        // SimpleMDEが既に読み込まれている場合
-        initSimpleMDE();
+    if (typeof EasyMDE !== "undefined") {
+        // EasyMDEが既に読み込まれている場合
+        initEasyMDE();
     } else {
-        // SimpleMDEが読み込まれるのを待つ
+        // EasyMDEが読み込まれるのを待つ
         document.addEventListener("DOMContentLoaded", function() {
-            // SimpleMDEの読み込みを待つ（最大3秒）
+            // EasyMDEの読み込みを待つ（最大3秒）
             var maxWait = 30; // 100msごとに30回（3秒）
             var checkCount = 0;
             var checkInterval = setInterval(function() {
-                if (typeof SimpleMDE !== "undefined") {
+                if (typeof EasyMDE !== "undefined") {
                     clearInterval(checkInterval);
-                    initSimpleMDE();
+                    initEasyMDE();
                 } else if (++checkCount >= maxWait) {
                     clearInterval(checkInterval);
-                    console.warn("SimpleMDE library did not load within 3 seconds");
+                    console.warn("EasyMDE library did not load within 3 seconds");
                 }
             }, 100);
         });
@@ -500,7 +500,7 @@ EOD;
         if (notemdCheckbox) {
             notemdCheckbox.addEventListener("change", function() {
                 console.log("Markdown checkbox changed: " + this.checked);
-                initSimpleMDE();
+                initEasyMDE();
             });
         }
     });
