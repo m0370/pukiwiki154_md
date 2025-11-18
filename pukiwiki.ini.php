@@ -673,6 +673,7 @@ $default_notemd = 1;
 // EasyMDE Markdown Editor (SimpleMDEの後継)
 // 1:Enable - リアルタイムプレビュー機能付きMarkdownエディタを使用
 // 0:Disable - 標準のテキストエリアを使用
+// Note: 変数名は後方互換性のため$use_simplemdeのまま維持しています
 $use_simplemde = 1;
 
 // ParsedownExtra（拡張Markdown記法）

@@ -1,66 +1,59 @@
 # pukiwiki154_md アップデート履歴
 
-## 2025-11-18: EasyMDEへの移行
+## 2025-11-18: EasyMDE v2.20.0への移行（SimpleMDEからの完全移行）
 
-### コミット
-- SimpleMDEからEasyMDE v2.20.0への移行
+### 概要
+SimpleMDE v1.11.2（2017年開発停止）から、アクティブにメンテナンスされているEasyMDE v2.20.0に完全移行しました。
+
+### 移行の経緯
+1. **CDN配置** (Phase 4): SimpleMDEをCDN経由で利用
+2. **ローカル配置** (2025-11-18 午前): SimpleMDEをローカルファイルに変更してオフライン対応
+3. **EasyMDE移行** (2025-11-18 午後): SimpleMDEをEasyMDEに完全置き換え
 
 ### 変更内容
-- SimpleMDE (v1.11.2) からEasyMDE (v2.20.0) への移行
-- `skin/js/easymde.min.css` (v2.20.0) への置き換え
-- `skin/js/easymde.min.js` (v2.20.0) への置き換え
-- `lib/html.php`: SimpleMDE参照をEasyMDEに変更
-- `pukiwiki.ini.php`: コメント更新
+- **エディタライブラリ**: SimpleMDE v1.11.2 → EasyMDE v2.20.0
+- **ファイル配置**:
+  - `skin/js/easymde.min.css` (13KB) - ローカル配置
+  - `skin/js/easymde.min.js` (320KB) - ローカル配置
+  - SimpleMDEファイル削除
+- **コード更新**:
+  - `lib/html.php`: エディタ初期化コードをEasyMDEに変更
+  - `pukiwiki.ini.php`: コメント更新
+  - ドキュメント全体をEasyMDE基準に更新
 
-### 理由
-- **メンテナンス**: SimpleMDEは2017年から開発停止、EasyMDEはアクティブな後継プロジェクト
-- **セキュリティ**: 継続的なメンテナンスによる脆弱性対応
+### 移行の理由
+- **メンテナンス**: SimpleMDEは2017年から開発停止、EasyMDEはアクティブ
+- **セキュリティ**: 継続的な脆弱性対応とアップデート
+- **互換性**: SimpleMDEとAPI互換性を維持（移行が容易）
 - **パフォーマンス**: 最新のCodeMirror技術による改善
-- **互換性**: SimpleMDEとのAPI互換性を維持
-
-### 修正ファイル
-- `lib/html.php` (432-507行): エディタ初期化コードの更新
-- `pukiwiki.ini.php` (673行): コメント更新
-- `skin/js/`: SimpleMDEファイルをEasyMDEファイルに置き換え
-
----
-
-## 2025-11-18: SimpleMDEローカルファイル配置対応
-
-### コミット
-- `afc7f16` - 改善: SimpleMDEをCDNからローカルファイル配置に変更
-- `e77761c` - 追加: SimpleMDEのローカルファイル配置
-
-### 変更内容
-- SimpleMDEをCDN配置からローカルファイル配置に変更
-- `skin/js/simplemde.min.css` (v1.11.2) をローカル配置
-- `skin/js/simplemde.min.js` (v1.11.2) をローカル配置
 
 ### メリット
-- **パフォーマンス向上**: CDN遅延がない
-- **オフライン動作**: インターネット接続がなくても利用可能
-- **CDN依存削減**: 外部サービスへの依存を減らす
-- **セキュリティ**: SRI対応から信頼できるローカルファイル配置へ
+- ✅ オフライン動作（ローカルファイル配置）
+- ✅ CDN依存なし
+- ✅ 継続的なセキュリティアップデート
+- ✅ コミュニティによる活発な開発
 
-### 修正ファイル
-- `lib/html.php` (334行目〜): SimpleMDE読み込みパス変更
-  - CDNリンク削除
-  - ローカルファイルパス（`SKIN_DIR`）への変更
+### コミット
+- `7c5969c` - 改善: SimpleMDEからEasyMDE v2.20.0への移行
+- `afc7f16` - 改善: SimpleMDEをCDNからローカルファイル配置に変更（移行前の準備）
+- `e77761c` - 追加: SimpleMDEのローカルファイル配置（移行前の準備）
 
 ---
 
 ## 過去のアップデート履歴
 
 ### Phase 5: UI/UX改善（2025-11-17, ed48be4, d6370d1）
-- SimpleMDE表示問題の解決
+- Markdownエディタ表示問題の解決
 - 新規ページの初期テキスト問題修正
 - `$default_notemd`設定の追加（新規ページのデフォルトモード制御）
+- ※当時はSimpleMDEを使用（後にEasyMDEへ移行）
 
 ### Phase 4: 改良とリファクタリング（2025-11-16, ed752c1 〜 4027c63）
-- SimpleMDE改善（CDN読み込み、SRI対応、リアルタイム切替）
+- Markdownエディタ改善（CDN読み込み、SRI対応、リアルタイム切替）
 - プラグイン互換性強化（マルチライン引数サポート）
 - エラーハンドリング統一（`format_markdown_error()`関数の導入）
 - convert_html()リファクタリング
+- ※当時はSimpleMDEを使用（後にEasyMDEへ移行）
 
 ### Phase 3: セキュリティ強化（2025-11-15, 1d048c7）
 - URLスキーム検証機能追加（`is_safe_markdown_url()`）
