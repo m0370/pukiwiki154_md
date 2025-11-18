@@ -1,5 +1,30 @@
 # pukiwiki154_md アップデート履歴
 
+## 2025-11-18: EasyMDEへの移行
+
+### コミット
+- SimpleMDEからEasyMDE v2.20.0への移行
+
+### 変更内容
+- SimpleMDE (v1.11.2) からEasyMDE (v2.20.0) への移行
+- `skin/js/easymde.min.css` (v2.20.0) への置き換え
+- `skin/js/easymde.min.js` (v2.20.0) への置き換え
+- `lib/html.php`: SimpleMDE参照をEasyMDEに変更
+- `pukiwiki.ini.php`: コメント更新
+
+### 理由
+- **メンテナンス**: SimpleMDEは2017年から開発停止、EasyMDEはアクティブな後継プロジェクト
+- **セキュリティ**: 継続的なメンテナンスによる脆弱性対応
+- **パフォーマンス**: 最新のCodeMirror技術による改善
+- **互換性**: SimpleMDEとのAPI互換性を維持
+
+### 修正ファイル
+- `lib/html.php` (432-507行): エディタ初期化コードの更新
+- `pukiwiki.ini.php` (673行): コメント更新
+- `skin/js/`: SimpleMDEファイルをEasyMDEファイルに置き換え
+
+---
+
 ## 2025-11-18: SimpleMDEローカルファイル配置対応
 
 ### コミット
@@ -57,4 +82,4 @@
 **プロジェクト**: PukiWiki 1.5.4 Markdown改造版
 **最終更新**: 2025-11-18
 **Parsedownバージョン**: 1.7.4 / ParsedownExtra 0.8.1
-**SimpleMDEバージョン**: 1.11.2
+**EasyMDEバージョン**: 2.20.0

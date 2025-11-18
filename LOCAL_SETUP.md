@@ -5,7 +5,7 @@
 - **PHP**: 8.4.14（Homebrewでインストール済み）
 - **ファイルパーミッション**: wiki/等の書き込みディレクトリは正常に設定
 - **Parsedownライブラリ**: 1.7.4 + ParsedownExtra 0.8.1
-- **SimpleMDE**: CDN経由で利用可能
+- **EasyMDE**: v2.20.0（ローカル配置済み）
 
 ## セットアップ手順
 
@@ -76,9 +76,9 @@ def hello():
 4. 「プレビュー」ボタンでMarkdown形式で表示されることを確認
 5. 「ページの更新」で保存
 
-#### 3.4 SimpleMDEエディタの動作確認
+#### 3.4 EasyMDEエディタの動作確認
 - Markdown有効なページを編集
-- SimpleMDEエディタが表示される（ツールバーが見える）
+- EasyMDEエディタが表示される（ツールバーが見える）
 - チェックボックスをON/OFFすると、エディタが切り替わることを確認
 - ブラウザコンソール（F12）でエラーがないか確認
 
@@ -99,7 +99,7 @@ def hello():
 ```php
 $markdown_safemode = 1;        // XSS防止（有効）
 $default_notemd = 1;           // 新規ページはMarkdown（有効）
-$use_simplemde = 1;            // SimpleMDE統合（有効）
+$use_simplemde = 1;            // EasyMDE統合（有効）
 $use_parsedown_extra = 1;      // 拡張記法（有効）
 $markdown_debug_mode = 0;      // デバッグ出力（無効）
 ```
@@ -125,10 +125,10 @@ php -S localhost:8080
 - PHPサーバーを再起動（Ctrl+Cで停止後、再実行）
 - `lib/html.php`が最新版であることを確認
 
-#### SimpleMDEが読み込まれない場合
-- インターネット接続を確認（CDN経由）
-- ファイアウォール設定を確認
-- または、SimpleMDEをローカル配置に変更（上級者向け）
+#### EasyMDEが読み込まれない場合
+- `skin/js/easymde.min.css` と `easymde.min.js` が存在することを確認
+- ブラウザコンソール（F12）でJavaScriptエラーを確認
+- ファイルパーミッションを確認（読み取り可能か）
 
 #### Parsedownがエラーを出している場合
 - `plugin/vendor/erusev/parsedown/` が存在することを確認
