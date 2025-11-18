@@ -61,13 +61,41 @@ Pukiwiki ではどうしても書き方が馴染めないと言う人が少な�
               既存ページの編集には影響しません。
               ページ編集画面で「Markdown」チェックボックスを使って切り替えることも可能です。
 
-    $use_simplemde = 1;
-        EasyMDEエディタの使用設定（SimpleMDEの後継）
-        1: 有効 - リアルタイムプレビュー機能付きエディタを使用（ローカルファイル）
-        0: 無効 - 標準のテキストエリアを使用
+    $markdown_editor = 'simplemde';
+        Markdownエディタの選択
+        使用するMarkdownエディタを選択できます。
 
-        Note: EasyMDE v2.20.0がローカルに配置されています（skin/js/easymde.min.{css,js}）。
-              SimpleMDEは2017年から開発停止のため、EasyMDEに移行しました。
+        選択肢:
+        'simplemde' : SimpleMDE（デフォルト、280KB、開発停止だが安定）
+                      - リアルタイムプレビュー機能付き
+                      - ツールバー、ショートカット対応
+                      - バージョン1.11.2でSRI対応
+
+        'easymde'   : EasyMDE（SimpleMDEの後継、280KB）
+                      - SimpleMDEの全機能を継承
+                      - 自動保存機能（LocalStorageを使用）
+                      - スペルチェック機能
+                      - アクティブに開発継続中
+
+        'tinymde'   : TinyMDE（軽量60-70KB、モバイル対応優秀）
+                      - SimpleMDE/EasyMDEの約1/4のサイズ
+                      - 依存関係ほぼなし
+                      - モバイル端末のOS自動補正に対応
+                      - シンプルなインターフェース
+
+        'none'      : エディタなし（通常のtextarea）
+                      - Markdownエディタを使用しない
+                      - 最も軽量
+
+        Note:
+        - SimpleMDEとEasyMDEはCDN経由で読み込みます
+        - TinyMDEはUNPKG CDN経由で読み込みます
+        - オフライン環境で使用する場合は、ファイルをダウンロードして
+          lib/html.phpのCDN URLを変更してください
+
+    $use_simplemde = 1;
+        （非推奨、後方互換性のために残されています）
+        $markdown_editorが設定されている場合はそちらが優先されます
 
     $use_parsedown_extra = 1;
         ParsedownExtraの使用設定（拡張Markdown記法）
@@ -194,6 +222,44 @@ Markdown記法モードでも、PukiWikiの全てのプラグインが使用可�
 ----
 
 修正履歴
+
+2025-11-17 (機能追加: Markdownエディタ選択機能)
+    [機能追加]
+    - Markdownエディタの選択機能を追加（$markdown_editor）
+        * SimpleMDE: 既存のエディタ（デフォルト、280KB、安定）
+        * EasyMDE: SimpleMDEの後継（280KB、自動保存・スペルチェック付き）
+        * TinyMDE: 軽量版（60-70KB、モバイル対応優秀）
+        * none: エディタなし（通常のtextarea）
+
+    [実装詳細]
+    - pukiwiki.ini.phpに$markdown_editor設定を追加
+        * 4つのエディタから選択可能
+        * 後方互換性を維持（$use_simplemdeも動作）
+    - lib/html.phpにエディタ切り替えロジックを実装
+        * switch文で各エディタのCDN読み込みと初期化を切り替え
+        * SimpleMDE: バージョン1.11.2、SRI対応
+        * EasyMDE: 最新版、自動保存機能有効
+        * TinyMDE: 最新版、ツールバー付き
+        * すべてのエディタで動的なオン/オフ切り替えに対応
+
+    [各エディタの特徴]
+    - SimpleMDE
+        * 開発停止だが安定している
+        * SRI (Subresource Integrity) 対応
+        * 既存環境との互換性が高い
+    - EasyMDE
+        * SimpleMDEの後継でアクティブ開発中
+        * LocalStorageを使った自動保存機能
+        * スペルチェック機能
+    - TinyMDE
+        * ファイルサイズが約1/4と軽量
+        * モバイル端末のOS自動補正に対応
+        * 依存関係がほぼない
+
+    [後方互換性]
+    - 既存の$use_simplemde設定も引き続き動作
+    - $markdown_editorが未設定の場合は$use_simplemdeを参照
+    - デフォルトはSimpleMDEで既存環境に影響なし
 
 2025-11-16 (バグ修正と機能追加)
     [バグ修正]

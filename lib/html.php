@@ -420,7 +420,7 @@ EOD;
 	}
 
 	// Pukiwiki-Markdown
-	global $default_notemd;
+	global $default_notemd, $markdown_editor, $use_simplemde;
 	$add_notemd = '';
 	$simplemde = ''; // 初期化
 	$notemd_on = ''; // Markdownチェックボックスの状態初期化
@@ -505,6 +505,56 @@ EOD;
         }
     });
 </script>';
+			break;
+
+		case 'tinymde':
+			// TinyMDE Markdown Editor (軽量版)
+			$simplemde = '<link rel="stylesheet" href="https://unpkg.com/tiny-markdown-editor/dist/tiny-mde.min.css">
+<script src="https://unpkg.com/tiny-markdown-editor/dist/tiny-mde.min.js"></script>
+<script>
+    // TinyMDE初期化（エラーハンドリング付き）
+    document.addEventListener("DOMContentLoaded", function() {
+        var notemdCheckbox = document.getElementById("_edit_form_notemd");
+        var editorElement = document.getElementById("editor");
+        var editorInstance = null;
+
+        function initEditor() {
+            if (notemdCheckbox && notemdCheckbox.checked && editorElement) {
+                try {
+                    if (typeof TinyMDE !== "undefined" && !editorInstance) {
+                        editorInstance = new TinyMDE.Editor({
+                            textarea: "editor"
+                        });
+                        var commandBar = new TinyMDE.CommandBar({
+                            element: editorElement.parentNode,
+                            editor: editorInstance
+                        });
+                    }
+                } catch (e) {
+                    console.error("TinyMDE initialization error:", e);
+                }
+            } else if (editorInstance) {
+                // TinyMDEのクリーンアップ
+                if (editorInstance.element) {
+                    editorInstance.element.style.display = "";
+                }
+                editorInstance = null;
+            }
+        }
+
+        initEditor();
+        if (notemdCheckbox) {
+            notemdCheckbox.addEventListener("change", initEditor);
+        }
+    });
+</script>';
+			break;
+
+		case 'none':
+		default:
+			// エディタなし（通常のtextarea）
+			$simplemde = '';
+			break;
 	}
 	$add_notemd = '<input type="checkbox" name="notemd" ' .
 		'id="_edit_form_notemd" value="true"' . $notemd_on . '>' . "\n" .
