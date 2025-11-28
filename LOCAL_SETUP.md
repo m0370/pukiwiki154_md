@@ -181,7 +181,7 @@ pukiwiki154_md/
 ├── index.php                    # エントリーポイント
 ├── pukiwiki.ini.php             # Markdown設定項目（657-687行目）
 ├── lib/
-│   ├── html.php                 # SimpleMDE統合（修正済み）
+│   ├── html.php                 # EasyMDE統合（修正済み）
 │   ├── convert_html.php         # Markdown処理
 │   ├── file.php                 # notemd関連関数
 │   └── ...
