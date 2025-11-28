@@ -226,44 +226,108 @@ function process_markdown_links($line, &$debug_info)
 }
 
 /**
- * Initialize Parsedown parser based on configuration
+ * Initialize Markdown parser based on configuration
  *
  * @param array &$debug_info Debug information array
- * @return object Parsedown or ParsedownExtraWithInlineFootnotes instance
+ * @return object Parsedown, ParsedownExtraWithInlineFootnotes, or MarkdownConverter instance
  */
-function init_parsedown_parser(&$debug_info)
+function init_markdown_parser(&$debug_info)
 {
-	global $use_parsedown_extra, $markdown_debug_mode;
+	global $markdown_parser, $use_parsedown_extra, $markdown_debug_mode;
 
-	if (!empty($use_parsedown_extra) && class_exists('\ParsedownExtra')) {
-		// Load ParsedownExtraWithInlineFootnotes class (with inline footnote support)
-		if (!class_exists('\ParsedownExtraWithInlineFootnotes')) {
-			$parsedown_path = PLUGIN_DIR . 'vendor/erusev/parsedown/ParsedownExtraWithInlineFootnotes.php';
-			if (file_exists($parsedown_path)) {
-				require_once $parsedown_path;
-			}
-		}
-
-		// Use ParsedownExtraWithInlineFootnotes if available, otherwise fall back to ParsedownExtra
-		if (class_exists('\ParsedownExtraWithInlineFootnotes')) {
-			$parsedown = new \ParsedownExtraWithInlineFootnotes();
-			if (!empty($markdown_debug_mode)) {
-				$debug_info['parser'] = 'ParsedownExtraWithInlineFootnotes ' . \ParsedownExtraWithInlineFootnotes::version;
-			}
-		} else {
-			$parsedown = new \ParsedownExtra();
-			if (!empty($markdown_debug_mode)) {
-				$debug_info['parser'] = 'ParsedownExtra ' . \ParsedownExtra::version;
-			}
-		}
-	} else {
-		$parsedown = new \Parsedown();
-		if (!empty($markdown_debug_mode)) {
-			$debug_info['parser'] = 'Parsedown ' . \Parsedown::version;
-		}
+	// Backward compatibility: $use_parsedown_extra overrides $markdown_parser
+	if (!empty($use_parsedown_extra) && !isset($markdown_parser)) {
+		$markdown_parser = 'parsedown_extra';
 	}
 
-	return $parsedown;
+	// Default to commonmark if not specified
+	if (!isset($markdown_parser) || empty($markdown_parser)) {
+		$markdown_parser = 'commonmark';
+	}
+
+	switch ($markdown_parser) {
+		case 'commonmark':
+			// league/commonmark with GFM and Footnote extensions
+			if (!file_exists(dirname(PLUGIN_DIR) . '/vendor/autoload.php')) {
+				// Fallback to parsedown_extra if composer vendor not available
+				if (!empty($markdown_debug_mode)) {
+					$debug_info['parser_warning'] = 'league/commonmark not found, falling back to parsedown_extra';
+				}
+				$markdown_parser = 'parsedown_extra';
+				return init_markdown_parser($debug_info); // Recursive call with fallback
+			}
+
+			require_once dirname(PLUGIN_DIR) . '/vendor/autoload.php';
+
+			$environment = new \League\CommonMark\Environment\Environment([
+				'html_input' => 'allow',
+				'allow_unsafe_links' => false,
+			]);
+
+			// Add GitHub Flavored Markdown extension (includes strikethrough, tables, task lists, autolinks)
+			$environment->addExtension(new \League\CommonMark\Extension\GithubFlavoredMarkdownExtension());
+
+			// Add Footnote extension (supports both [^1] style and ^[text] inline footnotes)
+			$environment->addExtension(new \League\CommonMark\Extension\Footnote\FootnoteExtension());
+
+			$parser = new \League\CommonMark\MarkdownConverter($environment);
+
+			if (!empty($markdown_debug_mode)) {
+				$debug_info['parser'] = 'league/commonmark 2.x (GFM + Footnotes)';
+			}
+
+			return $parser;
+
+		case 'parsedown_extra':
+			// ParsedownExtra with inline footnote support
+			if (!class_exists('\ParsedownExtra')) {
+				// Fallback to basic parsedown if ParsedownExtra not available
+				if (!empty($markdown_debug_mode)) {
+					$debug_info['parser_warning'] = 'ParsedownExtra not found, falling back to parsedown';
+				}
+				$markdown_parser = 'parsedown';
+				return init_markdown_parser($debug_info);
+			}
+
+			// Load ParsedownExtraWithInlineFootnotes class
+			if (!class_exists('\ParsedownExtraWithInlineFootnotes')) {
+				$parsedown_path = PLUGIN_DIR . 'vendor/erusev/parsedown/ParsedownExtraWithInlineFootnotes.php';
+				if (file_exists($parsedown_path)) {
+					require_once $parsedown_path;
+				}
+			}
+
+			// Use ParsedownExtraWithInlineFootnotes if available
+			if (class_exists('\ParsedownExtraWithInlineFootnotes')) {
+				$parser = new \ParsedownExtraWithInlineFootnotes();
+				if (!empty($markdown_debug_mode)) {
+					$debug_info['parser'] = 'ParsedownExtraWithInlineFootnotes ' . \ParsedownExtraWithInlineFootnotes::version;
+				}
+			} else {
+				$parser = new \ParsedownExtra();
+				if (!empty($markdown_debug_mode)) {
+					$debug_info['parser'] = 'ParsedownExtra ' . \ParsedownExtra::version;
+					$debug_info['parser_warning'] = 'ParsedownExtraWithInlineFootnotes not found, inline footnotes not supported';
+				}
+			}
+
+			return $parser;
+
+		case 'parsedown':
+		default:
+			// Basic Parsedown (no extensions)
+			if (!class_exists('\Parsedown')) {
+				throw new Exception('Parsedown not found. Please install Parsedown library.');
+			}
+
+			$parser = new \Parsedown();
+
+			if (!empty($markdown_debug_mode)) {
+				$debug_info['parser'] = 'Parsedown ' . \Parsedown::version;
+			}
+
+			return $parser;
+	}
 }
 
 /**
@@ -279,6 +343,16 @@ function generate_debug_output($debug_info, $safemode)
 	$debug_output .= 'Parser: ' . $debug_info['parser'] . "\n";
 	$debug_output .= 'Safemode: ' . ($safemode ? 'ON' : 'OFF') . "\n";
 	$debug_output .= 'Lines: ' . $debug_info['line_count'] . "\n";
+	if (isset($debug_info['cache'])) {
+		$debug_output .= 'Cache: ' . $debug_info['cache'];
+		if (isset($debug_info['cache_file'])) {
+			$debug_output .= ' (' . $debug_info['cache_file'] . ')';
+		}
+		$debug_output .= "\n";
+	}
+	if (isset($debug_info['parser_warning'])) {
+		$debug_output .= 'Parser Warning: ' . $debug_info['parser_warning'] . "\n";
+	}
 	if (isset($debug_info['plugin_calls'])) {
 		$debug_output .= 'Plugin calls: ' . implode(', ', $debug_info['plugin_calls']) . "\n";
 	}
@@ -296,7 +370,7 @@ function generate_debug_output($debug_info, $safemode)
 
 function convert_html($lines)
 {
-	global $vars, $digest, $markdown_safemode, $markdown_debug_mode;
+	global $vars, $digest, $markdown_safemode, $markdown_debug_mode, $use_markdown_cache, $markdown_parser;
 	static $contents_id = 0;
 
 	// Set digest
@@ -322,6 +396,44 @@ function convert_html($lines)
 	}
 
 	// Markdown記法の処理
+
+	// キャッシュ機能
+	$cache_hit = false;
+	$cache_file = null;
+	if (!empty($use_markdown_cache)) {
+		// キャッシュファイル名の生成
+		$page_name = isset($vars['page']) ? $vars['page'] : 'unknown';
+		$parser_type = isset($markdown_parser) ? $markdown_parser : 'parsedown';
+		$cache_key = md5($page_name . ':' . $parser_type . ':' . $digest);
+		$cache_file = CACHE_DIR . 'markdown_' . $cache_key . '.cache';
+
+		// キャッシュが存在して有効かチェック
+		if (file_exists($cache_file)) {
+			$cached_data = unserialize(file_get_contents($cache_file));
+			if (is_array($cached_data) &&
+			    isset($cached_data['digest']) &&
+			    $cached_data['digest'] === $digest &&
+			    isset($cached_data['parser']) &&
+			    $cached_data['parser'] === $parser_type) {
+				// キャッシュヒット
+				$cache_hit = true;
+				if (!empty($markdown_debug_mode)) {
+					$debug_info['cache'] = 'HIT';
+					$debug_info['cache_file'] = basename($cache_file);
+					// デバッグ情報を追加して返す
+					$debug_output = generate_debug_output($debug_info, isset($markdown_safemode) ? (bool)$markdown_safemode : true);
+					return $debug_output . $cached_data['html'];
+				}
+				return $cached_data['html'];
+			}
+		}
+
+		if (!empty($markdown_debug_mode)) {
+			$debug_info['cache'] = 'MISS';
+			$debug_info['cache_file'] = basename($cache_file);
+		}
+	}
+
 	$count = count($lines);
 	$result_lines = array();
 
@@ -354,17 +466,40 @@ function convert_html($lines)
 
 	$text = implode("\n", $result_lines);
 
-	// Parsedownでの変換（エラーハンドリング付き）
+	// Markdownパーサーでの変換（エラーハンドリング付き）
 	try {
-		$parsedown = init_parsedown_parser($debug_info);
+		$parser = init_markdown_parser($debug_info);
 
 		// Safemodeの設定（デフォルトは有効）
 		$safemode = isset($markdown_safemode) ? (bool)$markdown_safemode : true;
 
-		$result = $parsedown
-			->setSafeMode($safemode)
-			->setBreaksEnabled(true) // 改行を自動的に<br />に変換
-			->text($text);
+		// パーサーの種類によってAPIが異なる
+		if (is_a($parser, '\League\CommonMark\MarkdownConverter')) {
+			// league/commonmark: ->convert()->getContent()
+			$result = $parser->convert($text)->getContent();
+		} else {
+			// Parsedown系: ->setSafeMode()->setBreaksEnabled()->text()
+			$result = $parser
+				->setSafeMode($safemode)
+				->setBreaksEnabled(true) // 改行を自動的に<br />に変換
+				->text($text);
+		}
+
+		// キャッシュに保存
+		if (!empty($use_markdown_cache) && $cache_file !== null) {
+			$parser_type = isset($markdown_parser) ? $markdown_parser : 'parsedown';
+			$cache_data = array(
+				'digest' => $digest,
+				'parser' => $parser_type,
+				'html' => $result,
+				'timestamp' => time()
+			);
+			// キャッシュディレクトリが存在しない場合は作成
+			if (!is_dir(CACHE_DIR)) {
+				mkdir(CACHE_DIR, 0755, true);
+			}
+			file_put_contents($cache_file, serialize($cache_data), LOCK_EX);
+		}
 
 		// デバッグ情報を出力
 		if (!empty($markdown_debug_mode) && isset($debug_info['page'])) {

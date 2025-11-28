@@ -45,24 +45,63 @@ PukiWikiではどうしても書き方が馴染めないという人が少なく
 
 ## 使用しているMarkdownパーサー
 
-### Parsedown 1.7.4 (最新安定版)
-- 高速で軽量なMarkdownパーサー
-- GitHub Flavored Markdown対応
+PukiWiki Markdown対応版では、**3種類のMarkdownパーサーから選択可能**です（`pukiwiki.ini.php`の`$markdown_parser`で設定）。
+
+### league/commonmark 2.x（推奨・デフォルト）
+- **GitHub Flavored Markdown（GFM）完全対応**
+- 打ち消し線（`~~text~~`）、タスクリスト（`- [ ]`）、オートリンク、テーブルなど
+- **Pandocスタイルのインライン脚注**（`^[text]`）と通常の脚注（`[^1]`）の両方に対応
+- 継続的にメンテナンスされている最新のMarkdownパーサー
+- **ライセンス**: BSD-3-Clause
+
+### ParsedownExtra 0.8.1 + インライン脚注拡張
+- Parsedownの拡張機能に加え、独自拡張でインライン脚注に対応
+- テーブル、脚注、定義リストなどの拡張記法に対応
+- **Pandocスタイルのインライン脚注**（`^[text]`）をサポート（独自実装）
+- 軽量で高速（league/commonmarkより高速）
 - **ライセンス**: MIT
 
-### ParsedownExtra 0.8.1 (最新安定版)
-- Parsedownの拡張機能
-- テーブル、脚注、定義リストなどの拡張記法に対応
+### Parsedown 1.7.4（基本版）
+- 高速で軽量なMarkdownパーサー
+- 基本的なMarkdown記法のみ対応
+- 拡張機能やインライン脚注は使用不可
 - **ライセンス**: MIT
+
+**推奨**: GitHub Flavored Markdownの全機能とインライン脚注を使いたい場合は **league/commonmark**（デフォルト）を選択してください。
 
 ---
 
 ## 設定項目（pukiwiki.ini.php）
 
+### `$markdown_parser = 'commonmark';`
+使用するMarkdownパーサーの選択（**新機能**）
+- `'commonmark'`: **league/commonmark 2.x**（推奨・デフォルト）
+  - GitHub Flavored Markdown完全対応
+  - 打ち消し線、タスクリスト、オートリンク、テーブル、脚注など全機能
+  - Pandocスタイルのインライン脚注（`^[text]`）に対応
+- `'parsedown_extra'`: **ParsedownExtra + インライン脚注拡張**
+  - テーブル、脚注、定義リストなどの拡張記法
+  - Pandocスタイルのインライン脚注（`^[text]`）に対応（独自実装）
+  - 軽量で高速
+- `'parsedown'`: **Parsedown 基本版**
+  - 基本的なMarkdown記法のみ（軽量・高速）
+  - 拡張機能は使用不可
+
+**Note**: `commonmark`と`parsedown_extra`の両方でインライン脚注が使用できます。
+
+### `$use_markdown_cache = 1;`
+Markdownキャッシュ機能（**新機能**）
+- `1`: 有効（推奨） - Markdown変換結果をキャッシュして高速化
+- `0`: 無効 - 毎回変換（開発・デバッグ時のみ）
+
+**Note**: キャッシュを有効にすると、Markdown変換が初回の1/10～1/20の時間で完了します（例: 20ms → 1ms）。ページ内容が変更された場合、自動的にキャッシュは更新されます。
+
 ### `$markdown_safemode = 1;`
 Markdownのセーフモード設定
 - `1`: 有効（推奨） - XSS攻撃などを防ぐ
 - `0`: 無効 - 生HTMLの埋め込みが可能（セキュリティリスクあり）
+
+**Note**: `commonmark`パーサーでは、この設定に関わらず常にセーフモードで動作します。
 
 ### `$default_notemd = 1;`
 新規ページのデフォルトモード設定
@@ -78,21 +117,27 @@ EasyMDEエディタの使用設定（SimpleMDEの後継）
 
 **Note**: EasyMDE v2.20.0がローカルに配置されています（`skin/js/easymde.min.{css,js}`）。SimpleMDEは2017年から開発停止のため、EasyMDEに移行しました。
 
-### `$use_parsedown_extra = 1;`
+### `$use_parsedown_extra = 1;`（非推奨 - 後方互換性のため維持）
 ParsedownExtraの使用設定（拡張Markdown記法）
 - `1`: 有効 - テーブルや脚注などの拡張記法が使用可能
 - `0`: 無効 - 基本的なMarkdown記法のみ
 
+**Note**: この設定は後方互換性のため残されています。新しい`$markdown_parser`設定を使用してください。
+
 ### `$markdown_debug_mode = 0;`
 Markdownデバッグモード
-- `1`: 有効 - HTMLコメントとして詳細なデバッグ情報を出力
+- `1`: 有効 - HTMLコメントとして詳細なデバッグ情報を出力（パーサー名、キャッシュヒット/ミスなど）
 - `0`: 無効（推奨） - 本番環境での使用時
 
 ---
 
-## ParsedownExtraで使える拡張Markdown記法
+## 拡張Markdown記法
+
+PukiWikiでは、選択したパーサー（`commonmark`または`parsedown_extra`）に応じて、様々な拡張Markdown記法が使用できます。
 
 ### テーブル（GitHub Flavored Markdown形式）
+**対応**: `commonmark`, `parsedown_extra`
+
 ```markdown
 | ヘッダー1 | ヘッダー2 |
 |----------|----------|
@@ -102,6 +147,8 @@ Markdownデバッグモード
 ### 脚注
 
 #### 参照スタイル脚注（Reference-style footnotes）
+**対応**: `commonmark`, `parsedown_extra`
+
 ```markdown
 本文中に脚注[^1]を挿入できます。
 
@@ -109,28 +156,57 @@ Markdownデバッグモード
 ```
 
 #### インライン脚注（Inline footnotes）- Pandocスタイル
+**対応**: `commonmark`, `parsedown_extra`
+
 ```markdown
 本文中にインライン脚注^[これがインライン脚注です]を挿入できます。
 ```
 
-**Note**: インライン脚注は、脚注の内容が短い場合に便利です。参照スタイル脚注とインライン脚注は同時に使用できます。
+**Note**: インライン脚注は、脚注の内容が短い場合に便利です。参照スタイル脚注とインライン脚注は同時に使用できます。両方のパーサーでサポートされています。
+
+### 打ち消し線（Strikethrough）
+**対応**: `commonmark`のみ（GitHub Flavored Markdown）
+
+```markdown
+~~打ち消し線~~
+```
+
+### タスクリスト（Task Lists）
+**対応**: `commonmark`のみ（GitHub Flavored Markdown）
+
+```markdown
+- [x] 完了したタスク
+- [ ] 未完了のタスク
+```
+
+### オートリンク
+**対応**: `commonmark`のみ（GitHub Flavored Markdown）
+
+```markdown
+https://example.com （自動的にリンクになります）
+user@example.com （メールアドレスも自動的にリンクになります）
+```
 
 ### 定義リスト
+**対応**: `parsedown_extra`のみ
+
 ```markdown
 用語
 : 定義
 ```
 
 ### Fenced Code Blocks
+**対応**: `commonmark`, `parsedown_extra`
+
 ````markdown
 ```言語名
 コード
 ```
 ````
 
-### その他
-- 省略語
-- 特殊属性など、多数の拡張機能
+### その他の拡張機能
+**ParsedownExtra**: 省略語、特殊属性など
+**league/commonmark**: テーブル内のパイプエスケープ、HTML属性の追加など
 
 ---
 
