@@ -339,7 +339,7 @@ function edit_form($page, $postdata, $digest = FALSE, $b_template = TRUE)
 	global $notimeupdate;
 	global $_msg_edit_cancel_confirm, $_msg_edit_unloadbefore_message;
 	global $rule_page;
-	global $use_simplemde; // Pukiwiki Markdown
+	global $use_simplemde; // EasyMDE editor for Markdown (変数名は互換性のためsimplemdeを維持)
 
 	$script = get_base_uri();
 	// Newly generate $digest or not
@@ -422,7 +422,7 @@ EOD;
 	// Pukiwiki-Markdown
 	global $default_notemd, $markdown_editor, $use_simplemde;
 	$add_notemd = '';
-	$simplemde = ''; // 初期化
+	$simplemde = ''; // EasyMDEエディタスクリプトの初期化（変数名は互換性のため維持）
 	$notemd_on = ''; // Markdownチェックボックスの状態初期化
 	$is_new_page = ! is_page($page, $clearcache = TRUE);
 	$default_mode = isset($default_notemd) ? $default_notemd : 1; // デフォルトは1（Markdown）

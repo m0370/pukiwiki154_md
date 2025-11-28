@@ -1,311 +1,452 @@
-# PukiWiki 1.5.4 + Markdown
+# PukiWiki 1.5.4 Markdown対応版
 
-PukiWiki 1.5.4をベースに、ページ単位でPukiWiki記法とMarkdown記法を併用できるように改造したプロジェクトです。
+自由にページを追加・削除・編集できるWebページ構築スクリプトである**PukiWiki 1.5.4**をベースに、Markdown記法での記載ができるように修正を加えました。
 
-## 概要
+PukiWikiではどうしても書き方が馴染めないという人が少なくない上に、Markdownエディターはいろいろな優れたアプリがどんどん増えていて自分に合った使いやすいものがかなり選べる状態になっています。その考えからPukiWiki 1.5.4を無理やりMarkdown記法とPukiWiki記法の両方に対応させたものが今回のものになります。
 
-PukiWiki記法に馴染めないユーザーや、Markdownエディタの利便性を求めるユーザーに向けて、ページごとに2つの記法を使い分けられる柔軟なシステムを実装しました。
+しかし、以前に公開したPukiWiki-mdは全てのページがMarkdownでしか書けないために不便を感じることもありました。従来型の書き方を使いたいということもあるからです。そこで、ページによって2種類の書き方を使い分けることができるような改造をしました。さらに、チェックボックスで編集からそのいずれかを採用するかを選ぶことができます。
 
-従来のPukiWiki記法で書かれた既存ページはそのままに、新規ページをMarkdown記法で作成・編集できます。編集画面のチェックボックスで、各ページの記法を自由に切り替え可能です。
+---
 
-## 主な特徴
+## ベースとしたPukiWiki
 
-### 📝 ページごとの記法切り替え
-- 編集画面のチェックボックスで、PukiWiki記法またはMarkdown記法を選択可能
-- 新規ページのデフォルトモードは設定で制御（デフォルト: Markdown）
-- 既存ページはPukiWiki記法を保持したまま、新規ページはMarkdownで追加可能
+- **Version**: 1.5.4
+- **Copyright**:
+  - 2001-2022 PukiWiki Development Team
+  - 2001-2002 yu-ji (Based on PukiWiki 1.3 by yu-ji)
+- **License**: GPL version 2 or (at your option) any later version
+- **URL**:
+  - https://pukiwiki.osdn.jp/
+  - https://pukiwiki.osdn.jp/dev/
+  - https://osdn.jp/projects/pukiwiki/
 
-### 🎨 ビジュアルMarkdownエディタ
-- **EasyMDE v2.20.0** をローカルに配置
-  - SimpleMDEの後継で、アクティブなメンテナンスを受けている
-  - リアルタイムプレビュー機能
-  - 自動保存機能（LocalStorage利用）
-  - スペルチェック機能
+---
 
-### 🔌 プラグイン互換性
-- Markdown記法モードでも、PukiWikiの全てのプラグインが使用可能
-- ブロックプラグイン: `#plugin` → `!plugin`
-- インラインプラグイン: `&plugin` (PukiWiki記法と同じ)
-- マルチライン対応: `!plugin{{ ... }}` // v0.4以降
+## 特徴
 
-### 🛡️ セキュリティ
-- SafeMode: 生HTML埋め込み防止（デフォルト: 有効）
-- URLホワイトリスト: javascript:, data:, file: などの危険なスキームをブロック
-- 全プラグイン実行を例外処理で保護
-- HTTPSリンクのみをデフォルトで許可
+### ページ毎にPukiWiki記法かMarkdown記法を選択可能
+- 編集画面のチェックボックスでどちらの記法を使うかを選べます
+- 新規ページの初期設定はMarkdownに設定しています（変更可能です）
+- これまでに書いたページはPukiWiki記法で残しつつ、今後のページはMarkdown記法で書き足してゆくということもできます
 
-### 📋 拡張Markdown記法
-ParsedownExtra 0.8.1により、以下の拡張記法に対応:
-- GitHub Flavored Markdown形式のテーブル
-- 脚注機能
-- 定義リスト
-- Fenced Code Blocks
-- その他多数の拡張機能
+### Markdown記法でもプラグインが使用可能
+- ブロックプラグインでは `#plugin` の代わりに `!plugin` の表記を用います
 
-## ベースプロジェクト
+### リンク記法の柔軟性
+- PukiWiki記法（`[[リンク>URL]]`）でもMarkdown記法（`[リンク](URL)`）でも使用可能です
 
-```
-PukiWiki 1.5.4
-Copyright 2001-2022 PukiWiki Development Team
-ライセンス: GPL version 2 or (at your option) any later version
+### ビジュアルMarkdownエディタ「EasyMDE」搭載
+- CSSとJavaScriptを各1行ずつ読み込むだけで簡単にビジュアルMarkdownエディタが使用可能
+- 書いたMarkdown書式はリアルタイムに反映されます
+- PukiWiki記法で記載しているときは書式は反映されません
+- 不要な場合は `pukiwiki.ini.php` で `$use_simplemde = 0;` を設定してください
 
-公式サイト:
-  https://pukiwiki.osdn.jp/
-  https://osdn.jp/projects/pukiwiki/
-```
+---
 
-## インストール
+## 使用しているMarkdownパーサー
 
-### 必要要件
-- PHP 5.4以上
-- Webサーバー (Apache, Nginx など)
+PukiWiki Markdown対応版では、**3種類のMarkdownパーサーから選択可能**です（`pukiwiki.ini.php`の`$markdown_parser`で設定）。
 
-### セットアップ
+### league/commonmark 2.x（推奨・デフォルト）
+- **GitHub Flavored Markdown（GFM）完全対応**
+- 打ち消し線（`~~text~~`）、タスクリスト（`- [ ]`）、オートリンク、テーブルなど
+- **Pandocスタイルのインライン脚注**（`^[text]`）と通常の脚注（`[^1]`）の両方に対応
+- 継続的にメンテナンスされている最新のMarkdownパーサー
+- **ライセンス**: BSD-3-Clause
 
-1. リポジトリをクローン
-```bash
-git clone https://github.com/m0370/pukiwiki154_md.git
-cd pukiwiki154_md
-```
+### ParsedownExtra 0.8.1 + インライン脚注拡張
+- Parsedownの拡張機能に加え、独自拡張でインライン脚注に対応
+- テーブル、脚注、定義リストなどの拡張記法に対応
+- **Pandocスタイルのインライン脚注**（`^[text]`）をサポート（独自実装）
+- 軽量で高速（league/commonmarkより高速）
+- **ライセンス**: MIT
 
-2. サーバーにアップロード
+### Parsedown 1.7.4（基本版）
+- 高速で軽量なMarkdownパーサー
+- 基本的なMarkdown記法のみ対応
+- 拡張機能やインライン脚注は使用不可
+- **ライセンス**: MIT
 
-3. `pukiwiki.ini.php` で設定を調整
+**推奨**: GitHub Flavored Markdownの全機能とインライン脚注を使いたい場合は **league/commonmark**（デフォルト）を選択してください。
 
-4. ブラウザでアクセス
+---
 
-詳細なセットアップ手順については [LOCAL_SETUP.md](LOCAL_SETUP.md) を参照してください。
+## 設定項目（pukiwiki.ini.php）
 
-## 設定項目 (pukiwiki.ini.php)
+### `$markdown_parser = 'commonmark';`
+使用するMarkdownパーサーの選択（**新機能**）
+- `'commonmark'`: **league/commonmark 2.x**（推奨・デフォルト）
+  - GitHub Flavored Markdown完全対応
+  - 打ち消し線、タスクリスト、オートリンク、テーブル、脚注など全機能
+  - Pandocスタイルのインライン脚注（`^[text]`）に対応
+- `'parsedown_extra'`: **ParsedownExtra + インライン脚注拡張**
+  - テーブル、脚注、定義リストなどの拡張記法
+  - Pandocスタイルのインライン脚注（`^[text]`）に対応（独自実装）
+  - 軽量で高速
+- `'parsedown'`: **Parsedown 基本版**
+  - 基本的なMarkdown記法のみ（軽量・高速）
+  - 拡張機能は使用不可
 
-### Markdownモード関連
+**Note**: `commonmark`と`parsedown_extra`の両方でインライン脚注が使用できます。
 
-| 設定変数 | デフォルト | 説明 |
-|---------|----------|------|
-| `$markdown_safemode` | 1 | SafeMode（生HTML埋め込み防止） |
-| `$default_notemd` | 1 | 新規ページのデフォルトモード（1=Markdown, 0=PukiWiki） |
-| `$markdown_editor` | 'easymde' | 使用するMarkdownエディタの選択 |
-| `$use_parsedown_extra` | 1 | ParsedownExtra拡張記法の有効化 |
-| `$markdown_debug_mode` | 0 | デバッグ情報の出力（HTMLコメント） |
+### `$use_markdown_cache = 1;`
+Markdownキャッシュ機能（**新機能**）
+- `1`: 有効（推奨） - Markdown変換結果をキャッシュして高速化
+- `0`: 無効 - 毎回変換（開発・デバッグ時のみ）
 
-### Markdownエディタの選択
+**Note**: キャッシュを有効にすると、Markdown変換が初回の1/10～1/20の時間で完了します（例: 20ms → 1ms）。ページ内容が変更された場合、自動的にキャッシュは更新されます。
 
-`$markdown_editor` に以下の値を設定できます:
+### `$markdown_safemode = 1;`
+Markdownのセーフモード設定
+- `1`: 有効（推奨） - XSS攻撃などを防ぐ
+- `0`: 無効 - 生HTMLの埋め込みが可能（セキュリティリスクあり）
 
-```php
-$markdown_editor = 'easymde';   // EasyMDE v2.20.0 (デフォルト)
-$markdown_editor = 'simplemde'; // SimpleMDE 1.11.2 (開発停止だが安定)
-$markdown_editor = 'tinymde';   // TinyMDE (軽量版)
-$markdown_editor = 'none';      // エディタなし
-```
+**Note**: `commonmark`パーサーでは、この設定に関わらず常にセーフモードで動作します。
 
-**後方互換性**: `$use_simplemde` も引き続き動作します。`$markdown_editor` が設定されている場合はそちらが優先されます。
+### `$default_notemd = 1;`
+新規ページのデフォルトモード設定
+- `1`: Markdown - 新規ページ作成時、デフォルトでMarkdownモードを有効にする
+- `0`: PukiWiki - 新規ページ作成時、デフォルトでPukiWiki記法モードにする
 
-### 推奨設定
+**Note**: この設定は新規ページ作成時のみ適用されます。既存ページの編集には影響しません。ページ編集画面で「Markdown」チェックボックスを使って切り替えることも可能です。
 
-```php
-// セキュリティ重視
-$markdown_safemode = 1;      // SafeMode有効
-$default_notemd = 1;          // 新規ページはMarkdown
-$markdown_editor = 'easymde'; // EasyMDE使用
-$use_parsedown_extra = 1;    // 拡張記法有効
-$markdown_debug_mode = 0;    // 本番環境ではデバッグ無効
-```
+### `$use_simplemde = 1;`
+EasyMDEエディタの使用設定（SimpleMDEの後継）
+- `1`: 有効 - リアルタイムプレビュー機能付きエディタを使用（ローカルファイル）
+- `0`: 無効 - 標準のテキストエリアを使用
 
-## 使用方法
+**Note**: EasyMDE v2.20.0がローカルに配置されています（`skin/js/easymde.min.{css,js}`）。SimpleMDEは2017年から開発停止のため、EasyMDEに移行しました。
 
-### Markdown記法でページを書く
+### `$use_parsedown_extra = 1;`（非推奨 - 後方互換性のため維持）
+ParsedownExtraの使用設定（拡張Markdown記法）
+- `1`: 有効 - テーブルや脚注などの拡張記法が使用可能
+- `0`: 無効 - 基本的なMarkdown記法のみ
 
-1. ページを新規作成または編集を開く
-2. 編集画面の「Markdown」チェックボックスがONになっていることを確認
-3. EasyMDEエディタでMarkdown記法で記載
-4. プレビューで確認後、保存
+**Note**: この設定は後方互換性のため残されています。新しい`$markdown_parser`設定を使用してください。
 
-### Markdown記法で使えるプラグイン
+### `$markdown_debug_mode = 0;`
+Markdownデバッグモード
+- `1`: 有効 - HTMLコメントとして詳細なデバッグ情報を出力（パーサー名、キャッシュヒット/ミスなど）
+- `0`: 無効（推奨） - 本番環境での使用時
 
-#### ブロックプラグイン
-PukiWiki記法の `#plugin` を `!plugin` に変更します:
+---
 
-```markdown
-!calendar
-!article{{
-テキスト内容
-}}
-```
+## 拡張Markdown記法
 
-#### インラインプラグイン
-PukiWiki記法と同じ構文で使用できます:
+PukiWikiでは、選択したパーサー（`commonmark`または`parsedown_extra`）に応じて、様々な拡張Markdown記法が使用できます。
 
-```markdown
-&br;
-&color(red){赤い文字};
-&size(20){大きな文字};
-```
+### テーブル（GitHub Flavored Markdown形式）
+**対応**: `commonmark`, `parsedown_extra`
 
-### 拡張Markdown記法の例
-
-#### テーブル
 ```markdown
 | ヘッダー1 | ヘッダー2 |
 |----------|----------|
 | セル1    | セル2    |
 ```
 
-#### 脚注
+### 脚注
+
+#### 参照スタイル脚注（Reference-style footnotes）
+**対応**: `commonmark`, `parsedown_extra`
+
 ```markdown
 本文中に脚注[^1]を挿入できます。
-[^1]: 脚注の内容
+
+[^1]: これが脚注の内容です
 ```
 
-#### 定義リスト
+#### インライン脚注（Inline footnotes）- Pandocスタイル
+**対応**: `commonmark`, `parsedown_extra`
+
+```markdown
+本文中にインライン脚注^[これがインライン脚注です]を挿入できます。
+```
+
+**Note**: インライン脚注は、脚注の内容が短い場合に便利です。参照スタイル脚注とインライン脚注は同時に使用できます。両方のパーサーでサポートされています。
+
+### 打ち消し線（Strikethrough）
+**対応**: `commonmark`のみ（GitHub Flavored Markdown）
+
+```markdown
+~~打ち消し線~~
+```
+
+### タスクリスト（Task Lists）
+**対応**: `commonmark`のみ（GitHub Flavored Markdown）
+
+```markdown
+- [x] 完了したタスク
+- [ ] 未完了のタスク
+```
+
+### オートリンク
+**対応**: `commonmark`のみ（GitHub Flavored Markdown）
+
+```markdown
+https://example.com （自動的にリンクになります）
+user@example.com （メールアドレスも自動的にリンクになります）
+```
+
+### 定義リスト
+**対応**: `parsedown_extra`のみ
+
 ```markdown
 用語
 : 定義
 ```
 
-#### コードブロック
-```markdown
-```python
-def hello():
-    print("Hello, World!")
+### Fenced Code Blocks
+**対応**: `commonmark`, `parsedown_extra`
+
+````markdown
+```言語名
+コード
 ```
-```
+````
 
-## Parsedownライブラリ
+### その他の拡張機能
+**ParsedownExtra**: 省略語、特殊属性など
+**league/commonmark**: テーブル内のパイプエスケープ、HTML属性の追加など
 
-このプロジェクトで使用しているMarkdownパーサー:
+---
 
-- **Parsedown 1.7.4** - 高速で軽量なMarkdownパーサー
-  - GitHub Flavored Markdown対応
-  - ライセンス: MIT
+## エラーハンドリング
 
-- **ParsedownExtra 0.8.1** - Parsedownの拡張機能
-  - テーブル、脚注、定義リストなどの拡張記法に対応
-  - ライセンス: MIT
+- プラグイン呼び出し時のエラーを詳細に表示
+- デバッグモード有効時は、エラーの原因を具体的に表示
+- Markdownパーサーのエラーも適切にキャッチして表示
 
-配置位置: `plugin/vendor/erusev/parsedown/`
+---
 
-## EasyMDEエディタについて
+## EasyMDEエディタ（ローカル配置）
 
-EasyMDE v2.20.0がローカルに配置されています。
+EasyMDE v2.20.0が既にローカルに配置されています。SimpleMDEの後継プロジェクトとして、アクティブなメンテナンスとセキュリティアップデートが継続されています。
 
-### ローカルファイル配置
-```
-skin/js/easymde.min.css (v2.20.0, 13KB)
-skin/js/easymde.min.js (v2.20.0, 320KB)
-```
+### 配置済みファイル
+- `skin/js/easymde.min.css` (v2.20.0, 13KB)
+- `skin/js/easymde.min.js` (v2.20.0, 320KB)
 
-### 特徴
-- SimpleMDEの後継プロジェクト
-- 継続的にメンテナンス・セキュリティアップデート
-- API互換性を維持（SimpleMDEからの移行が容易）
-- オフライン環境での使用が可能
-- CDN障害の影響を受けない
-- プライバシー保護（外部サーバーへの接続なし）
+### 移行理由
+- SimpleMDEは2017年から開発停止
+- EasyMDEは継続的にメンテナンスされている
+- API互換性を維持（移行が容易）
+- セキュリティアップデートとバグ修正
 
-### 将来的な更新手順
+### EasyMDEの更新手順（将来的に必要な場合）
 
-最新版を使用する場合:
-
-1. 最新版をダウンロード
+#### 1. 最新版をダウンロード
 ```bash
 npm install easymde
 ```
+または
+```
+https://github.com/Ionaru/easy-markdown-editor/releases
+```
 
-2. ファイルを置き換え
+#### 2. ファイルを置き換え
 ```
 node_modules/easymde/dist/easymde.min.css → skin/js/easymde.min.css
 node_modules/easymde/dist/easymde.min.js → skin/js/easymde.min.js
 ```
 
-3. `lib/html.php` で必要に応じてURLを調整
+**Note**: ローカル配置の場合、integrity属性とcrossorigin属性は不要なため削除してください。
 
-## エラーハンドリング
-
-- プラグイン呼び出し時のエラーを詳細に表示
-- `$markdown_debug_mode = 1` でデバッグモードを有効化
-- 例外が発生してもページ全体はクラッシュしない
-- エラーメッセージはHTMLエスケープで安全に処理
-
-## 既存PukiWikiからの移行
-
-### 強み
-- 既存ページを全く修正せずにそのまま使用可能
-- 新規ページのみMarkdown記法で作成
-- 段階的なMarkdown化が可能
-
-### 実装方法
-- Markdown記法のページに `#notemd` 偽装プラグインを埋め込み
-- PukiWiki記法のページは従来通り動作
-- システムが自動的に記法を判定して処理
-
-## トラブルシューティング
-
-### EasyMDEが表示されない
-1. `$markdown_editor = 'easymde'` に設定されているか確認
-2. `skin/js/easymde.min.js` が存在するか確認
-3. ブラウザのコンソールでエラーメッセージを確認
-4. `$markdown_debug_mode = 1` でデバッグモードを有効化
-
-### Markdownが正しくレンダリングされない
-1. ページの「Markdown」チェックボックスがONになっているか確認
-2. Markdown記法に構文エラーがないか確認
-3. `$use_parsedown_extra = 1` が有効になっているか確認
-
-### セキュリティエラー
-1. `$markdown_safemode = 1` が有効になっているか確認
-2. URLスキームがhttp/httpsであるか確認
-3. 生HTMLの埋め込みがないか確認（SafeMode有効時は不可）
-
-## ライセンス
-
-このプロジェクトはPukiWiki 1.5.4をベースにしており、GPLライセンスに従います。
-
-**GPL version 2 or (at your option) any later version**
-
-## 更新履歴
-
-詳細な更新履歴は [UPDATES.md](UPDATES.md) を参照してください。
-
-### v0.4 (2025-11-18)
-- **改善**: SimpleMDEからEasyMDE v2.20.0への移行
-- **機能**: Markdownエディタ選択機能の実装（easymde/simplemde/tinymde/none）
-- **修正**: lib/html.phpのswitch文構文エラーを修正
-- **ドキュメント**: README.mdを新規作成し、最新情報に更新
-
-### v0.3以前
-詳細は [UPDATES.md](UPDATES.md) を参照
-
-## 開発情報
-
-### 主要ファイル
-- `lib/convert_html.php` - Markdown処理のメインロジック
-- `lib/html.php` - EasyMDE統合、edit_form関数
-- `lib/file.php` - notemd関連関数
-- `pukiwiki.ini.php` - 設定ファイル
-
-### テスト方法
-各ページで以下をテストしてください:
-- MarkdownチェックボックスのON/OFF
-- エディタの動的な切り替え
-- プラグイン呼び出し（ブロック/インライン）
-- リンク処理（内部リンク/外部リンク）
-
-## 貢献
-
-改善案や不具合報告は、GitHubのIssueで受け付けています。
-
-## サポート
-
-問題が発生した場合:
-1. [UPDATES.md](UPDATES.md) で更新履歴を確認
-2. [LOCAL_SETUP.md](LOCAL_SETUP.md) でセットアップを確認
-3. `$markdown_debug_mode = 1` でデバッグ情報を確認
+### メリット
+- オフライン環境での使用が可能
+- CDN障害の影響を受けない
+- プライバシー保護（外部サーバーへの接続なし）
+- ページ読み込み速度の向上（LAN内配信の場合）
 
 ---
 
-**最終更新**: 2025-11-18
-**バージョン**: v0.4
-**ベースバージョン**: PukiWiki 1.5.4
-**Parsedownバージョン**: 1.7.4 / ParsedownExtra 0.8.1
-**EasyMDEバージョン**: 2.20.0
+## プラグイン互換性
+
+Markdown記法モードでも、PukiWikiの全てのプラグインが使用可能です。
+
+### ブロックプラグイン（!pluginname）
+
+Markdown記法では、プラグイン呼び出しの先頭記号を `#` から `!` に変更します。
+
+**PukiWiki記法の例:**
+```
+#calendar
+```
+
+**Markdown記法の例:**
+```
+!calendar
+```
+
+**マルチライン（複数行）対応:**
+```
+!article{{
+タイトル
+本文内容...
+}}
+```
+
+**エラーハンドリング:**
+- プラグインが存在しない場合は警告メッセージを表示
+- プラグイン実行時の例外を適切にキャッチ
+- デバッグモード有効時は詳細なエラー情報を表示
+
+### インラインプラグイン（&pluginname）
+
+通常のPukiWiki記法と同じ構文で使用できます。
+
+**使用例:**
+```
+&br;
+&color(red){赤い文字};
+&size(20){大きな文字};
+```
+
+**エラーハンドリング:**
+- プラグインが存在しない場合は元のテキストを表示
+- プラグイン実行時の例外を適切にキャッチ
+- デバッグモード有効時は詳細なエラー情報を表示
+
+### セキュリティ
+
+全てのプラグイン呼び出しは、try-catch構文で保護されています。プラグインの実行エラーが発生しても、ページ全体がクラッシュすることはありません。
+
+---
+
+## 既存のPukiWikiからの引っ越しも可能
+
+この、ページ毎に従来のPukiWiki記法とMarkdown記法のいずれかを選んで使い分けることができるという方式で何が有利かというと、**既存ページのwikiフォルダはそのままに設定ファイルなどを書き換えれば、今まで使っていたPukiWikiがそのままMarkdownも併用できるようになる**という点です。
+
+全てのページがMarkdownしか使えないのは全ページの書き換えが必要だったので、新規に設置するPukiWikiにはよくても既存の稼働しているPukiWikiからの引っ越しには不向きでした。
+
+今回の改造では、PukiWiki記法で使用しているページの保存ファイルは手を加えず、一方でMarkdown記法を指定した保存ファイルには `#notemd` の偽装プラグインを書き込むようにしています。
+
+---
+
+## 修正履歴
+
+> **※ 2025-11-18**: SimpleMDEからEasyMDE v2.20.0への完全移行を実施しました。
+> 以下の履歴中のSimpleMDE参照は、移行前の記録です。
+
+### 2025-11-16 (バグ修正と機能追加)
+
+#### [バグ修正]
+- Markdownエディタが表示されない問題を修正
+  - `$simplemde`変数の初期化漏れを解消
+  - DOMContentLoadedイベントで確実に初期化
+  - Markdownチェックボックスの状態を監視し、動的にエディタをオン/オフ
+- 新規ページ初期テキストの問題を修正
+  - Markdownモードの新規ページで`[[リンク元]]`が不要なため削除
+  - PukiWikiモードの既存ページは従来通り動作
+
+#### [機能追加]
+- 新規ページのデフォルトモード設定を追加（`$default_notemd`）
+  - `1`: 新規ページはMarkdownモード（デフォルト）
+  - `0`: 新規ページはPukiWiki記法モード
+  - 既存ページの編集には影響なし
+  - ユーザーの好みに応じてデフォルトモードを選択可能
+
+### 2025-11-16 (Phase 4改良 - Markdownエディタ改善、プラグイン互換性強化、コード品質向上)
+
+#### [セキュリティ強化]
+- Markdownエディタをバージョン固定（1.11.2）に変更
+  - CDN URLを "latest" から明示的なバージョン指定に変更
+  - 予期しないバージョン更新による互換性問題を防止
+- SRI (Subresource Integrity) 対応
+  - CSSとJavaScriptにintegrity属性を追加
+  - CDN改ざん検知によるセキュリティ向上
+  - crossorigin属性の追加
+- インラインプラグインに例外処理を追加
+  - try-catch構文でプラグイン実行を保護
+  - ブロックプラグインと同等のエラーハンドリング
+  - デバッグモード有効時の詳細エラー表示
+
+#### [改善]
+- Markdownエディタ初期化にエラーハンドリングを追加
+  - try-catch構文で例外をキャッチ
+  - CDN読み込み失敗時のフォールバック処理
+  - コンソールへの警告/エラーメッセージ出力
+- プラグイン互換性の完全確保
+  - ブロックプラグイン（`!plugin`）の動作確認
+  - インラインプラグイン（`&plugin`）の動作確認
+  - マルチラインプラグインのサポート確認
+  - エラーハンドリングの統一化
+
+#### [コード品質向上]
+- `convert_html()`関数のリファクタリング
+  - 188行の長大な関数を87行に短縮
+  - 6つの責務別ヘルパー関数に分割
+  - PHPDocコメントによる詳細なドキュメント化
+  - 保守性とテスタビリティの向上
+- 例外処理の統一化
+  - `format_markdown_error()`関数による統一的なエラー処理
+  - HTMLエスケープ処理の標準化
+  - CSSクラスの統一（alert alert-warning/danger）
+  - デバッグモード対応の一元化
+  - ブロックプラグイン、インラインプラグイン、パーサーで統一フォーマット
+
+#### [ドキュメント追加]
+- オフライン環境対応のドキュメント追加
+  - Markdownエディタローカル化手順の詳細説明
+  - ファイル配置とlib/html.php編集方法
+  - オフライン使用のメリット説明
+- プラグイン互換性セクションを追加
+  - ブロックプラグインの使用方法と構文
+  - インラインプラグインの使用方法と構文
+  - エラーハンドリングの説明
+  - セキュリティに関する説明
+
+### 2025-11-16 (Phase 3改良 - セキュリティ強化)
+
+#### [セキュリティ強化]
+- Markdown内の画像・リンクURLスキーム検証機能を追加
+  - `is_safe_markdown_url()`関数を実装
+  - ホワイトリスト方式（http/httpsのみ許可）
+  - `javascript:`, `data:`, `file:`などの危険なスキームをブロック
+  - 不正なURLはエラーメッセージを表示
+- Safemodeのデフォルト動作を安全側に変更
+  - 未設定時や不正値の場合は自動的に有効化
+  - セキュリティ優先の設計に改善
+- デバッグモードにセキュリティ警告を追加
+  - ブロックされたURLを追跡
+  - HTMLコメントで詳細情報を出力
+
+#### [ドキュメント改善]
+- pukiwiki.ini.phpの設定コメントを強化
+  - セキュリティリスクに関する警告を追加
+  - 各設定項目の推奨値を明記
+  - デバッグモードの本番環境使用に関する注意事項
+
+### 2025-11-16 (Phase 2改良)
+
+#### [機能追加]
+- ParsedownExtra 0.8.1を導入し、拡張Markdown記法に対応
+  - GitHub Flavored Markdown形式のテーブル
+  - 脚注機能
+  - 定義リスト
+  - Fenced Code Blocks
+  - その他多数の拡張機能
+- デバッグモード機能を追加（`$markdown_debug_mode`設定）
+  - プラグイン呼び出しの追跡
+  - パーサーエラーの詳細表示
+  - HTMLコメントでのデバッグ情報出力
+
+#### [改善]
+- エラーハンドリングを大幅に強化
+  - プラグイン呼び出し時の例外処理を追加
+  - 詳細なエラーメッセージの表示
+  - HTMLエスケープ処理によるセキュリティ向上
+- リンク処理を改善
+  - RFC 3986準拠のURL処理に対応
+  - より広範なURLフォーマットに対応
+  - 日本語URLや特殊文字への対応強化
+- セーフモードのデフォルト値を安全側に設定
+
+#### [更新]
+- Parsedownを1.8.0-beta-7から1.7.4（最新安定版）にアップデート
+- ParsedownExtraを0.8.0から0.8.1（最新安定版）にアップデート
+  - セキュリティ修正とバグ修正を含む
+  - Parsedown 1.7.4との互換性を確保
+
+#### [追加設定項目]
+- `$use_parsedown_extra`: ParsedownExtraの有効/無効を切り替え
+- `$markdown_debug_mode`: デバッグモードの有効/無効を切り替え
