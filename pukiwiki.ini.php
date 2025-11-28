@@ -670,15 +670,30 @@ $markdown_safemode = 1;
 // この設定は新規ページ作成時のみ適用されます。既存ページの編集には影響しません。
 $default_notemd = 1;
 
+// Markdownパーサーの選択
+// 'commonmark'      - GitHub Flavored Markdown完全対応（推奨・デフォルト）
+//                     打ち消し線、タスクリスト、オートリンク、テーブル、脚注など全機能
+// 'parsedown_extra' - 拡張記法サポート（テーブル、脚注、定義リスト）
+//                     インライン脚注（独自拡張）をサポート
+// 'parsedown'       - 基本的なMarkdown記法のみ（軽量・高速）
+$markdown_parser = 'commonmark';
+
+// Markdownキャッシュ機能
+// 1:Enable - Markdown変換結果をキャッシュして高速化（推奨）
+// 0:Disable - 毎回変換（開発・デバッグ時のみ）
+$use_markdown_cache = 1;
+
 // EasyMDE Markdown Editor (SimpleMDEの後継)
 // 1:Enable - リアルタイムプレビュー機能付きMarkdownエディタを使用
 // 0:Disable - 標準のテキストエリアを使用
 // Note: 変数名は後方互換性のため$use_simplemdeのまま維持しています
 $use_simplemde = 1;
 
+// 後方互換性のための設定（非推奨 - 上記$markdown_parserを使用してください）
 // ParsedownExtra（拡張Markdown記法）
 // 1:Enable - テーブル、脚注、定義リストなどの拡張記法が使用可能
 // 0:Disable - 基本的なMarkdown記法のみ使用
+// Note: $markdown_parserが設定されている場合、この設定は無視されます
 $use_parsedown_extra = 1;
 
 // Markdownデバッグモード
