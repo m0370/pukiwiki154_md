@@ -229,16 +229,32 @@ function process_markdown_links($line, &$debug_info)
  * Initialize Parsedown parser based on configuration
  *
  * @param array &$debug_info Debug information array
- * @return object Parsedown or ParsedownExtra instance
+ * @return object Parsedown or ParsedownExtraWithInlineFootnotes instance
  */
 function init_parsedown_parser(&$debug_info)
 {
 	global $use_parsedown_extra, $markdown_debug_mode;
 
 	if (!empty($use_parsedown_extra) && class_exists('\ParsedownExtra')) {
-		$parsedown = new \ParsedownExtra();
-		if (!empty($markdown_debug_mode)) {
-			$debug_info['parser'] = 'ParsedownExtra ' . \ParsedownExtra::version;
+		// Load ParsedownExtraWithInlineFootnotes class (with inline footnote support)
+		if (!class_exists('\ParsedownExtraWithInlineFootnotes')) {
+			$parsedown_path = PLUGIN_DIR . 'vendor/erusev/parsedown/ParsedownExtraWithInlineFootnotes.php';
+			if (file_exists($parsedown_path)) {
+				require_once $parsedown_path;
+			}
+		}
+
+		// Use ParsedownExtraWithInlineFootnotes if available, otherwise fall back to ParsedownExtra
+		if (class_exists('\ParsedownExtraWithInlineFootnotes')) {
+			$parsedown = new \ParsedownExtraWithInlineFootnotes();
+			if (!empty($markdown_debug_mode)) {
+				$debug_info['parser'] = 'ParsedownExtraWithInlineFootnotes ' . \ParsedownExtraWithInlineFootnotes::version;
+			}
+		} else {
+			$parsedown = new \ParsedownExtra();
+			if (!empty($markdown_debug_mode)) {
+				$debug_info['parser'] = 'ParsedownExtra ' . \ParsedownExtra::version;
+			}
 		}
 	} else {
 		$parsedown = new \Parsedown();
