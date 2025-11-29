@@ -249,6 +249,9 @@ function init_markdown_parser(&$debug_info)
 		'allow_unsafe_links' => false,  // Block javascript:, data:, etc.
 	]);
 
+	// Add CommonMark Core Extension (required for basic rendering)
+	$environment->addExtension(new \League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension());
+
 	// Add GitHub Flavored Markdown extension
 	// Includes: strikethrough (~~text~~), tables, task lists (- [ ]), autolinks
 	$environment->addExtension(new \League\CommonMark\Extension\GithubFlavoredMarkdownExtension());
@@ -304,9 +307,136 @@ function generate_debug_output($debug_info, $safemode)
 	return $debug_output;
 }
 
+/**
+ * Convert league/commonmark footnotes to PukiWiki note format
+ *
+ * Extracts Markdown footnotes from <div class="footnotes"> and adds them
+ * to the global $foot_explain array for display in <div id="note">.
+ * Does NOT support PukiWiki footnotes when #notemd is enabled.
+ *
+ * @param string $html HTML output from Markdown conversion
+ * @return string HTML with footnotes section removed
+ */
+function convert_footnotes_to_pukiwiki_format($html)
+{
+	global $foot_explain, $vars;
+
+	// Extract footnotes from <div class="footnotes">
+	if (!preg_match('/<div class="footnotes"[^>]*>(.*?)<\/div>\s*$/s', $html, $matches)) {
+		// No footnotes found - try without trailing \s*$
+		if (!preg_match('/<div class="footnotes"[^>]*>(.*?)<\/div>/s', $html, $matches)) {
+			// Still no match - return as-is
+			return $html;
+		}
+	}
+
+	$footnotes_html = $matches[1];
+
+	// Remove footnotes section from HTML
+	$html = preg_replace('/<div class="footnotes"[^>]*>.*?<\/div>\s*$/s', '', $html);
+	// Also try without trailing anchor
+	$html = preg_replace('/<div class="footnotes"[^>]*>.*?<\/div>/s', '', $html);
+
+	// Extract individual footnotes from <ol><li> structure
+	if (!preg_match('/<ol[^>]*>(.*?)<\/ol>/s', $footnotes_html, $ol_matches)) {
+		return $html;
+	}
+
+	// Parse each <li id="fn:X"> footnote
+	preg_match_all('/<li[^>]*id="fn:([^"]+)"[^>]*>(.*?)<\/li>/s', $ol_matches[1], $li_matches, PREG_SET_ORDER);
+
+	if (empty($li_matches)) {
+		return $html;
+	}
+
+	// Get page URL for links
+	$script = get_page_uri(isset($vars['page']) ? $vars['page'] : '');
+
+	// Add footnotes to $foot_explain array
+	$footnote_counter = count($foot_explain) + 1; // Continue numbering from existing footnotes
+
+	foreach ($li_matches as $li_match) {
+		$footnote_id = $li_match[1]; // e.g., "3" or "fn1"
+		$content = $li_match[2];
+
+		// Remove backref link (↩ symbol)
+		$content = preg_replace('/<a[^>]*class="footnote-backref"[^>]*>.*?<\/a>/s', '', $content);
+
+		// Clean up content
+		$content = trim($content);
+		// Remove wrapping <p> tags if present
+		$content = preg_replace('/^<p>(.*?)<\/p>$/s', '$1', $content);
+
+		// Build footnote HTML for PukiWiki format and add to $foot_explain
+		$foot_explain[$footnote_counter] = '<a id="notefoot_' . $footnote_counter . '" href="' .
+			$script . '#notetext_' . $footnote_counter . '" class="note_super">*' .
+			$footnote_counter . '</a>' . "\n" .
+			'<span class="small">' . $content . '</span><br />';
+
+		$footnote_counter++;
+	}
+
+	// Also need to replace footnote references in HTML
+	// CommonMark generates: <sup><a href="#fn:3" id="fnref:3" ...>3</a></sup>
+	// We need: <a id="notetext_3" href="...#notefoot_3" class="note_super">*3</a>
+
+	$html = preg_replace_callback(
+		'/<sup[^>]*><a[^>]*href="#fn:([^"]+)"[^>]*>(\d+)<\/a><\/sup>/',
+		function($matches) use ($script) {
+			$display_num = $matches[2]; // Use CommonMark's original numbering
+			return '<a id="notetext_' . $display_num . '" href="' . $script .
+				'#notefoot_' . $display_num . '" class="note_super">*' . $display_num . '</a>';
+		},
+		$html
+	);
+
+	return $html;
+}
+
+/**
+ * Clean up expired markdown cache files (probabilistic, 1% chance)
+ *
+ * @param int $lifetime Cache lifetime in seconds
+ * @return void
+ */
+function cleanup_markdown_cache($lifetime)
+{
+	// 1%の確率で実行（アクセス100回に1回）
+	if (mt_rand(1, 100) !== 1) {
+		return;
+	}
+
+	if (empty($lifetime) || !is_dir(CACHE_DIR)) {
+		return;
+	}
+
+	$files = @glob(CACHE_DIR . 'markdown_*.cache');
+	if ($files === false) {
+		return;
+	}
+
+	$now = time();
+	$deleted = 0;
+
+	foreach ($files as $file) {
+		$mtime = @filemtime($file);
+		if ($mtime !== false && ($now - $mtime) > $lifetime) {
+			if (@unlink($file)) {
+				$deleted++;
+			}
+		}
+	}
+
+	// デバッグログ（オプション）
+	global $markdown_debug_mode;
+	if (!empty($markdown_debug_mode) && $deleted > 0) {
+		// error_log('Markdown cache cleanup: deleted ' . $deleted . ' files');
+	}
+}
+
 function convert_html($lines)
 {
-	global $vars, $digest, $markdown_debug_mode, $use_markdown_cache;
+	global $vars, $digest, $markdown_debug_mode, $use_markdown_cache, $markdown_cache_lifetime;
 	static $contents_id = 0;
 
 	// Set digest
@@ -333,7 +463,7 @@ function convert_html($lines)
 
 	// Markdown記法の処理
 
-	// キャッシュ機能
+	// キャッシュ機能（改善版: ファイルロック + JSON/serialize両対応 + 有効期限チェック）
 	$cache_hit = false;
 	$cache_file = null;
 	if (!empty($use_markdown_cache)) {
@@ -342,29 +472,80 @@ function convert_html($lines)
 		$cache_key = md5($page_name . ':commonmark:' . $digest);
 		$cache_file = CACHE_DIR . 'markdown_' . $cache_key . '.cache';
 
-		// キャッシュが存在して有効かチェック
+		// キャッシュ読み込み（ファイルロック付き）
 		if (file_exists($cache_file)) {
-			$cached_data = unserialize(file_get_contents($cache_file));
-			if (is_array($cached_data) &&
-			    isset($cached_data['digest']) &&
-			    $cached_data['digest'] === $digest &&
-			    isset($cached_data['parser']) &&
-			    $cached_data['parser'] === 'commonmark') {
-				// キャッシュヒット
-				$cache_hit = true;
-				if (!empty($markdown_debug_mode)) {
-					$debug_info['cache'] = 'HIT';
-					$debug_info['cache_file'] = basename($cache_file);
-					// デバッグ情報を追加して返す
-					$debug_output = generate_debug_output($debug_info, true);
-					return $debug_output . $cached_data['html'];
+			$fp = @fopen($cache_file, 'r');
+			if ($fp !== false) {
+				if (flock($fp, LOCK_SH)) {  // 共有ロック（読み込み用）
+					$content = stream_get_contents($fp);
+					flock($fp, LOCK_UN);
+					fclose($fp);
+
+					if ($content !== false && $content !== '') {
+						// JSON形式優先、失敗時serialize（後方互換）
+						$cached_data = @json_decode($content, true);
+						if (!is_array($cached_data)) {
+							$cached_data = @unserialize($content);
+						}
+
+						// キャッシュデータ検証
+						if (is_array($cached_data) &&
+						    isset($cached_data['digest']) &&
+						    $cached_data['digest'] === $digest &&
+						    isset($cached_data['parser']) &&
+						    $cached_data['parser'] === 'commonmark') {
+
+							// 有効期限チェック
+							$is_expired = false;
+							if (isset($cached_data['timestamp']) && !empty($markdown_cache_lifetime)) {
+								$age = time() - $cached_data['timestamp'];
+								if ($age > $markdown_cache_lifetime) {
+									$is_expired = true;
+									if (!empty($markdown_debug_mode)) {
+										$debug_info['cache'] = 'EXPIRED (age: ' . round($age / 86400, 1) . ' days)';
+									}
+								}
+							}
+
+							if (!$is_expired) {
+								// キャッシュヒット - 脚注処理を実行してから返す
+								$cache_hit = true;
+								if (!empty($markdown_debug_mode)) {
+									$debug_info['cache'] = 'HIT';
+									$debug_info['cache_file'] = basename($cache_file);
+									if (isset($cached_data['timestamp'])) {
+										$debug_info['cache_age'] = round((time() - $cached_data['timestamp']) / 3600, 1) . 'h';
+									}
+								}
+								// Convert Markdown footnotes to PukiWiki format (必須: $foot_explainを更新)
+								$html_with_footnotes = convert_footnotes_to_pukiwiki_format($cached_data['html']);
+
+								if (!empty($markdown_debug_mode)) {
+									// デバッグ情報を追加して返す
+									$debug_output = generate_debug_output($debug_info, true);
+									return $debug_output . $html_with_footnotes;
+								}
+								return $html_with_footnotes;
+							}
+						}
+					}
+				} else {
+					fclose($fp);
+					if (!empty($markdown_debug_mode)) {
+						$debug_info['cache'] = 'MISS (lock failed)';
+					}
 				}
-				return $cached_data['html'];
+			} else {
+				if (!empty($markdown_debug_mode)) {
+					$debug_info['cache'] = 'MISS (open failed)';
+				}
 			}
 		}
 
-		if (!empty($markdown_debug_mode)) {
-			$debug_info['cache'] = 'MISS';
+		if (!empty($markdown_debug_mode) && !$cache_hit) {
+			if (!isset($debug_info['cache'])) {
+				$debug_info['cache'] = 'MISS';
+			}
 			$debug_info['cache_file'] = basename($cache_file);
 		}
 	}
@@ -406,27 +587,66 @@ function convert_html($lines)
 		$parser = init_markdown_parser($debug_info);
 
 		// Markdown to HTML conversion
-		$result = $parser->convert($text)->getContent();
+		$raw_html = $parser->convert($text)->getContent();
 
-		// キャッシュに保存
+		// キャッシュに保存（改善版: JSON形式 + エラーハンドリング）
+		// 注意: 脚注処理前のHTML（<div class="footnotes">付き）を保存
 		if (!empty($use_markdown_cache) && $cache_file !== null) {
 			$cache_data = array(
 				'digest' => $digest,
 				'parser' => 'commonmark',
-				'html' => $result,
-				'timestamp' => time()
+				'html' => $raw_html,  // 生HTML（脚注未処理）をキャッシュ
+				'timestamp' => time(),
+				'version' => 2  // JSON形式識別子
 			);
-			// キャッシュディレクトリが存在しない場合は作成
-			if (!is_dir(CACHE_DIR)) {
-				mkdir(CACHE_DIR, 0755, true);
+
+			// JSON変換
+			$json = json_encode($cache_data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+			if ($json === false) {
+				// JSON変換失敗（ログのみ、処理は継続）
+				if (!empty($markdown_debug_mode)) {
+					$debug_info['cache_error'] = 'JSON encode failed';
+				}
+			} else {
+				// ディレクトリ確認・作成
+				if (!is_dir(CACHE_DIR)) {
+					if (!@mkdir(CACHE_DIR, 0755, true)) {
+						// ディレクトリ作成失敗（ログのみ）
+						if (!empty($markdown_debug_mode)) {
+							$debug_info['cache_error'] = 'mkdir failed: ' . CACHE_DIR;
+						}
+						$json = false;  // 書き込みスキップ
+					}
+				}
+
+				// ファイル書き込み
+				if ($json !== false) {
+					$bytes = @file_put_contents($cache_file, $json, LOCK_EX);
+					if ($bytes === false) {
+						// 書き込み失敗（ログのみ）
+						if (!empty($markdown_debug_mode)) {
+							$debug_info['cache_error'] = 'write failed: ' . basename($cache_file);
+						}
+					} elseif (!empty($markdown_debug_mode)) {
+						$debug_info['cache_write'] = 'OK (' . $bytes . ' bytes)';
+					}
+				}
 			}
-			file_put_contents($cache_file, serialize($cache_data), LOCK_EX);
 		}
+
+		// Convert Markdown footnotes to PukiWiki format
+		// キャッシュ有無に関わらず、この処理で$foot_explainを更新
+		$result = convert_footnotes_to_pukiwiki_format($raw_html);
 
 		// デバッグ情報を出力
 		if (!empty($markdown_debug_mode) && isset($debug_info['page'])) {
 			$debug_output = generate_debug_output($debug_info, true);
 			$result = $debug_output . $result;
+		}
+
+		// キャッシュクリーンアップ（確率的実行）
+		if (!empty($use_markdown_cache) && !empty($markdown_cache_lifetime)) {
+			cleanup_markdown_cache($markdown_cache_lifetime);
 		}
 
 		return $result;
