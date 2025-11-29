@@ -89,8 +89,11 @@ function is_safe_markdown_url($url)
  */
 function process_multiline_plugin($line, $lines, &$i, $count)
 {
+	global $markdown_support_hash_plugin;
+
+	$prefix = !empty($markdown_support_hash_plugin) ? '[#!]' : '!';
 	if (! PKWKEXP_DISABLE_MULTILINE_PLUGIN_HACK &&
-	    preg_match('/^![^{]+(\{\{+)\s*$/', $line, $m)) {
+	    preg_match('/^' . $prefix . '[^{]+(\{\{+)\s*$/', $line, $m)) {
 		$len = strlen($m[1]);
 		$line .= "\r"; // Delimiter
 		while ($i + 1 < $count) {
@@ -116,10 +119,13 @@ function process_multiline_plugin($line, $lines, &$i, $count)
  */
 function process_block_plugin($line, &$debug_info)
 {
-	global $markdown_debug_mode;
+	global $markdown_debug_mode, $markdown_support_hash_plugin;
+
+	// 接頭辞パターンを設定に応じて切り替え
+	$prefix = !empty($markdown_support_hash_plugin) ? '[#!]' : '!';
 
 	$matches = array();
-	if (preg_match('/^!([^\(\{]+)(?:\(([^\r]*)\))?(\{*)/', $line, $matches)) {
+	if (preg_match('/^' . $prefix . '([^\(\{]+)(?:\(([^\r]*)\))?(\{*)/', $line, $matches)) {
 		$plugin = trim($matches[1]);
 		if (exist_plugin_convert($plugin)) {
 			$args = isset($matches[2]) ? $matches[2] : '';
@@ -140,7 +146,10 @@ function process_block_plugin($line, &$debug_info)
 			}
 		} else {
 			$error_msg = htmlspecialchars($plugin, ENT_QUOTES, 'UTF-8');
-			$line = '<div class="alert alert-warning">Plugin "!' . $error_msg . '" not found.</div>';
+			// 接頭辞を動的に判定（元の行から取得）
+			$original_line = $line;
+			$prefix_char = (substr(trim($original_line), 0, 1) == '#') ? '#' : '!';
+			$line = '<div class="alert alert-warning">Plugin "' . $prefix_char . $error_msg . '" not found.</div>';
 			if (!empty($markdown_debug_mode)) {
 				$debug_info['plugin_errors'][] = $plugin;
 			}
@@ -281,6 +290,9 @@ function generate_debug_output($debug_info, $safemode)
 	$debug_output = '<!-- Markdown Debug Info for ' . htmlspecialchars($debug_info['page'], ENT_QUOTES, 'UTF-8') . "\n";
 	$debug_output .= 'Parser: ' . $debug_info['parser'] . "\n";
 	$debug_output .= 'Safemode: ' . ($safemode ? 'ON' : 'OFF') . "\n";
+	if (isset($debug_info['hash_plugin_support'])) {
+		$debug_output .= 'Hash Plugin Support: ' . $debug_info['hash_plugin_support'] . "\n";
+	}
 	$debug_output .= 'Lines: ' . $debug_info['line_count'] . "\n";
 	if (isset($debug_info['cache'])) {
 		$debug_output .= 'Cache: ' . $debug_info['cache'];
@@ -451,6 +463,7 @@ function convert_html($lines)
 		$debug_info['line_count'] = count($lines);
 		$debug_info['has_notemd'] = preg_grep('/^\#notemd/', $lines) ? true : false;
 		$debug_info['parsedown_version'] = class_exists('Parsedown') ? \Parsedown::version : 'not loaded';
+		$debug_info['hash_plugin_support'] = !empty($markdown_support_hash_plugin) ? 'enabled' : 'disabled';
 	}
 
 	// PukiWiki記法とMarkdown記法の分岐
@@ -469,7 +482,8 @@ function convert_html($lines)
 	if (!empty($use_markdown_cache)) {
 		// キャッシュファイル名の生成（ページ名とダイジェストから）
 		$page_name = isset($vars['page']) ? $vars['page'] : 'unknown';
-		$cache_key = md5($page_name . ':commonmark:' . $digest);
+		$parser_mode = !empty($markdown_support_hash_plugin) ? 'commonmark-hashplugin' : 'commonmark';
+		$cache_key = md5($page_name . ':' . $parser_mode . ':' . $digest);
 		$cache_file = CACHE_DIR . 'markdown_' . $cache_key . '.cache';
 
 		// キャッシュ読み込み（ファイルロック付き）
@@ -489,11 +503,12 @@ function convert_html($lines)
 						}
 
 						// キャッシュデータ検証
+						$expected_parser = !empty($markdown_support_hash_plugin) ? 'commonmark-hashplugin' : 'commonmark';
 						if (is_array($cached_data) &&
 						    isset($cached_data['digest']) &&
 						    $cached_data['digest'] === $digest &&
 						    isset($cached_data['parser']) &&
-						    $cached_data['parser'] === 'commonmark') {
+						    $cached_data['parser'] === $expected_parser) {
 
 							// 有効期限チェック
 							$is_expired = false;
@@ -595,9 +610,10 @@ function convert_html($lines)
 		// キャッシュに保存（改善版: JSON形式 + エラーハンドリング）
 		// 注意: 脚注処理前のHTML（<div class="footnotes">付き）を保存
 		if (!empty($use_markdown_cache) && $cache_file !== null) {
+			$parser_mode = !empty($markdown_support_hash_plugin) ? 'commonmark-hashplugin' : 'commonmark';
 			$cache_data = array(
 				'digest' => $digest,
-				'parser' => 'commonmark',
+				'parser' => $parser_mode,
 				'html' => $raw_html,  // 生HTML（脚注未処理）をキャッシュ
 				'timestamp' => time(),
 				'version' => 2  // JSON形式識別子

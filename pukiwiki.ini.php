@@ -703,3 +703,10 @@ $use_simplemde = 1;
 // 0:Disable（推奨） - 本番環境では必ず無効にしてください
 // デバッグモードを有効にすると、サーバー情報が露出する可能性があります。
 $markdown_debug_mode = 0;
+
+// Markdownブロックプラグイン構文設定
+// 0: !plugin のみサポート（デフォルト、後方互換性重視）
+// 1: #plugin と !plugin の両方をサポート（PukiWiki記法との統一性重視）
+// Note: 1を選択した場合、Markdown見出しは必ず「# 」（#の後にスペース必須）となります。
+//       これはCommonMark仕様に準拠しています。
+$markdown_support_hash_plugin = 0;
