@@ -686,6 +686,12 @@ $default_notemd = 1;
 // 0:Disable - 毎回変換（開発・デバッグ時のみ）
 $use_markdown_cache = 1;
 
+// Markdownキャッシュ有効期限（秒単位）
+// デフォルト: 604800秒 = 7日間
+// 0を指定すると無期限（非推奨、ディスク容量圧迫の可能性）
+// ページ内容が変更されない場合でも、この期間経過後に自動的にキャッシュが無効化されます
+$markdown_cache_lifetime = 604800;  // 7 days
+
 // EasyMDE Markdown Editor (SimpleMDEの後継)
 // 1:Enable - リアルタイムプレビュー機能付きMarkdownエディタを使用
 // 0:Disable - 標準のテキストエリアを使用
