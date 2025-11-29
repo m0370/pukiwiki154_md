@@ -1,9 +1,79 @@
 # pukiwiki154_md アップデート履歴
 
-## 2025-11-28: Markdownパーサー選択機能とキャッシュ機能の追加
+## 2025-11-28: league/commonmark専用化とPukiWiki脚注の併用対応
+
+### 概要
+Markdown処理を **league/commonmark 2.x専用** に変更しました。これにより、Markdown記法モード（`#notemd`）でも**PukiWikiスタイルの脚注 `((text))` が使える**ようになりました。Pandoc脚注 `^[text]` と併用可能です。
+
+### 主な変更内容
+
+#### 1. league/commonmark専用化
+- Parsedown系パーサー（parsedown, parsedown_extra）のサポートを終了
+- コードを大幅に簡略化（100行以上削減）
+- 保守性とパフォーマンスが向上
+
+#### 2. PukiWiki脚注の併用対応
+**重要な新機能**: Markdown記法モードでも **`((text))` のPukiWiki脚注が使える**ようになりました。
+
+- `make_link()` で生成されたHTML（PukiWiki脚注など）を保持
+- league/commonmarkの `'html_input' => 'allow'` 設定により実現
+- Pandoc脚注 `^[text]` とPukiWiki脚注 `((text))` の併用が可能
+- PukiWikiユーザーが慣れ親しんだ記法をそのまま使用可能
+
+#### 3. システム要件の明確化
+- **PHP 7.4以上が必須**（league/commonmark 2.xの要件）
+- Composer経由でleague/commonmarkがインストール済み（vendorディレクトリに含まれる）
+- PukiWiki本体はPHP 5.6以降だが、このMarkdown対応版はPHP 7.4以上が必要
+
+### 変更ファイル
+
+#### lib/convert_html.php
+- **大幅な簡略化**（約100行削減）
+- `init_markdown_parser()` を league/commonmark専用に書き換え
+- `convert_html()` 関数の簡略化（パーサーAPI差異チェックを削除）
+- グローバル変数を削減（`$markdown_parser`, `$markdown_safemode`を削除）
+
+#### pukiwiki.ini.php
+- `$markdown_parser` 設定を削除（commonmark固定）
+- `$use_parsedown_extra` 設定を削除
+- PukiWiki脚注 `((text))` が併用可能であることを明記
+- PHP 7.4以上の要件を明記
+
+#### README.md
+- パーサーセクションを全面改訂（commonmark専用化）
+- **PukiWiki脚注 `((text))` の説明を追加**（重要）
+- システム要件（PHP 7.4以上）を追加
+- 設定項目を簡略化
+
+### 脚注記法の比較
+
+Markdown記法モード（`#notemd`）では、以下の3種類の脚注記法が使用できます：
+
+```markdown
+# 1. 参照スタイル脚注（Markdown標準）
+本文中に脚注[^1]を挿入できます。
+[^1]: これが脚注の内容です
+
+# 2. Pandocスタイルインライン脚注
+本文中にインライン脚注^[これがPandoc脚注です]を挿入できます。
+
+# 3. PukiWikiスタイルインライン脚注
+本文中にインライン脚注((これがPukiWiki脚注です))を挿入できます。
+```
+
+**メリット**: PukiWikiユーザーは慣れ親しんだ `((text))` 記法をMarkdownモードでもそのまま使用できます。
+
+### コミット
+- 機能追加: league/commonmark専用化とPukiWiki脚注の併用対応
+
+---
+
+## 2025-11-28: Markdownパーサー選択機能とキャッシュ機能の追加（※後にleague/commonmark専用化）
 
 ### 概要
 3種類のMarkdownパーサーから選択可能になり、GitHub Flavored Markdown完全対応の **league/commonmark 2.x** をデフォルトとして追加しました。また、Markdown変換結果のキャッシュ機能を実装し、パフォーマンスが大幅に向上しました。
+
+**Note**: このバージョンは後にleague/commonmark専用化されました（上記参照）。
 
 ### 主な変更内容
 
