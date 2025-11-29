@@ -558,6 +558,9 @@ function convert_html($lines)
 		// #author,#notemd,#freezeはMarkdown Parserに渡さない
 		$line = preg_replace('/(\#author\(.*\)|\#notemd|\#freeze)/', '', $line);
 
+		// PukiWiki脚注記法 ((コメント)) を Markdownインライン脚注 ^[コメント] に変換
+		$line = preg_replace('/\(\((.+?)\)\)/', '^[$1]', $line);
+
 		// マルチラインプラグインの処理
 		$line = process_multiline_plugin($line, $lines, $i, $count);
 
