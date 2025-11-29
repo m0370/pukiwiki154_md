@@ -91,6 +91,13 @@ Markdownデバッグモード
 - `1`: 有効 - HTMLコメントとして詳細なデバッグ情報を出力（パーサー名、キャッシュヒット/ミスなど）
 - `0`: 無効（推奨） - 本番環境での使用時
 
+### `$markdown_support_hash_plugin = 0;`
+Markdownブロックプラグイン構文設定
+- `0`: `!plugin` のみサポート（デフォルト、後方互換性重視）
+- `1`: `#plugin` と `!plugin` の両方をサポート（PukiWiki記法との統一性重視）
+
+**Note**: `1`を選択した場合、Markdown見出しは必ず「`# `」（`#`の後にスペース必須）となります。これはCommonMark仕様に準拠しています。`#`の後にスペースがない場合（例: `#plugin(args)`）はプラグイン呼び出しとして認識され、スペースがある場合（例: `# 見出し`）は見出しとして認識されます。
+
 ---
 
 ## 拡張Markdown記法
@@ -219,23 +226,44 @@ node_modules/easymde/dist/easymde.min.js → skin/js/easymde.min.js
 
 Markdown記法モードでも、PukiWikiの全てのプラグインが使用可能です。
 
-### ブロックプラグイン（!pluginname）
+### ブロックプラグイン（#pluginname / !pluginname）
 
-Markdown記法では、プラグイン呼び出しの先頭記号を `#` から `!` に変更します。
+Markdown記法では、デフォルトでプラグイン呼び出しの先頭記号を `#` から `!` に変更します。
 
 **PukiWiki記法の例:**
 ```
 #calendar
 ```
 
-**Markdown記法の例:**
+**Markdown記法の例（デフォルト）:**
 ```
 !calendar
 ```
 
+**Markdown記法の例（`$markdown_support_hash_plugin = 1`設定時）:**
+
+`pukiwiki.ini.php`で`$markdown_support_hash_plugin = 1;`を設定すると、PukiWiki記法と同じ`#`記号も使用できます：
+
+```
+#calendar
+```
+
+**CommonMark仕様による自動判別:**
+- `# 見出し`（`#`の後にスペース） → Markdown見出しとして処理
+- `#calendar`（`#`の後にスペースなし） → プラグイン呼び出しとして処理
+- `!calendar`（設定に関わらず常に動作） → プラグイン呼び出しとして処理
+
 **マルチライン（複数行）対応:**
 ```
 !article{{
+タイトル
+本文内容...
+}}
+```
+
+または、`$markdown_support_hash_plugin = 1`設定時：
+```
+#article{{
 タイトル
 本文内容...
 }}
@@ -282,6 +310,36 @@ Markdown記法では、プラグイン呼び出しの先頭記号を `#` から 
 
 > **※ 2025-11-18**: SimpleMDEからEasyMDE v2.20.0への完全移行を実施しました。
 > 以下の履歴中のSimpleMDE参照は、移行前の記録です。
+
+### 2025-11-30 (ブロックプラグイン構文拡張)
+
+#### [機能追加]
+- Markdownモードで`#plugin`構文をサポート
+  - 新設定項目 `$markdown_support_hash_plugin` を追加
+  - デフォルト値 `0`: 従来通り`!plugin`のみサポート（後方互換性重視）
+  - 値 `1`: `#plugin`と`!plugin`の両方をサポート（PukiWiki記法との統一性重視）
+- CommonMark仕様による見出しとプラグインの自動判別
+  - `# 見出し`（`#`の後にスペース） → Markdown見出しとして処理
+  - `#plugin(args)`（`#`の後にスペースなし） → プラグイン呼び出しとして処理
+  - league/commonmark 2.xのCommonMark準拠仕様を活用
+- マルチラインプラグインも`#plugin{{ ... }}`構文に対応
+- キャッシュ機構を拡張
+  - 設定に応じて異なるキャッシュキーを生成（`commonmark` / `commonmark-hashplugin`）
+  - 設定変更時に自動的に新しいキャッシュを使用
+- デバッグ情報に`hash_plugin_support`の状態を追加
+- エラーメッセージを改善
+  - ユーザーが入力した接頭辞（`#`または`!`）を表示
+
+#### [利点]
+- PukiWiki記法からの移行が容易に
+  - プラグイン呼び出しを`#plugin`のまま使用可能
+  - 既存の知識をそのまま活用
+- Markdown見出しとの競合なし
+  - CommonMark仕様により自動判別
+  - `#`の後のスペースの有無で判定
+- 後方互換性を維持
+  - デフォルト設定で既存ページへの影響なし
+  - `!plugin`構文は設定に関わらず常に動作
 
 ### 2025-11-16 (バグ修正と機能追加)
 
