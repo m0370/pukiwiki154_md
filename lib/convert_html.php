@@ -226,108 +226,44 @@ function process_markdown_links($line, &$debug_info)
 }
 
 /**
- * Initialize Markdown parser based on configuration
+ * Initialize league/commonmark Markdown parser
  *
  * @param array &$debug_info Debug information array
- * @return object Parsedown, ParsedownExtraWithInlineFootnotes, or MarkdownConverter instance
+ * @return \League\CommonMark\MarkdownConverter MarkdownConverter instance
+ * @throws Exception If league/commonmark is not installed
  */
 function init_markdown_parser(&$debug_info)
 {
-	global $markdown_parser, $use_parsedown_extra, $markdown_debug_mode;
+	global $markdown_debug_mode;
 
-	// Backward compatibility: $use_parsedown_extra overrides $markdown_parser
-	if (!empty($use_parsedown_extra) && !isset($markdown_parser)) {
-		$markdown_parser = 'parsedown_extra';
+	// Check if league/commonmark is available
+	if (!file_exists(dirname(PLUGIN_DIR) . '/vendor/autoload.php')) {
+		throw new Exception('league/commonmark not found. Please install via composer: composer require league/commonmark');
 	}
 
-	// Default to commonmark if not specified
-	if (!isset($markdown_parser) || empty($markdown_parser)) {
-		$markdown_parser = 'commonmark';
+	require_once dirname(PLUGIN_DIR) . '/vendor/autoload.php';
+
+	// Configure environment with safe HTML handling
+	$environment = new \League\CommonMark\Environment\Environment([
+		'html_input' => 'allow',  // Allow HTML from make_link() (PukiWiki footnotes, links, etc.)
+		'allow_unsafe_links' => false,  // Block javascript:, data:, etc.
+	]);
+
+	// Add GitHub Flavored Markdown extension
+	// Includes: strikethrough (~~text~~), tables, task lists (- [ ]), autolinks
+	$environment->addExtension(new \League\CommonMark\Extension\GithubFlavoredMarkdownExtension());
+
+	// Add Footnote extension
+	// Supports: reference-style footnotes ([^1]) and Pandoc-style inline footnotes (^[text])
+	$environment->addExtension(new \League\CommonMark\Extension\Footnote\FootnoteExtension());
+
+	$parser = new \League\CommonMark\MarkdownConverter($environment);
+
+	if (!empty($markdown_debug_mode)) {
+		$debug_info['parser'] = 'league/commonmark 2.x (GFM + Footnotes)';
 	}
 
-	switch ($markdown_parser) {
-		case 'commonmark':
-			// league/commonmark with GFM and Footnote extensions
-			if (!file_exists(dirname(PLUGIN_DIR) . '/vendor/autoload.php')) {
-				// Fallback to parsedown_extra if composer vendor not available
-				if (!empty($markdown_debug_mode)) {
-					$debug_info['parser_warning'] = 'league/commonmark not found, falling back to parsedown_extra';
-				}
-				$markdown_parser = 'parsedown_extra';
-				return init_markdown_parser($debug_info); // Recursive call with fallback
-			}
-
-			require_once dirname(PLUGIN_DIR) . '/vendor/autoload.php';
-
-			$environment = new \League\CommonMark\Environment\Environment([
-				'html_input' => 'allow',
-				'allow_unsafe_links' => false,
-			]);
-
-			// Add GitHub Flavored Markdown extension (includes strikethrough, tables, task lists, autolinks)
-			$environment->addExtension(new \League\CommonMark\Extension\GithubFlavoredMarkdownExtension());
-
-			// Add Footnote extension (supports both [^1] style and ^[text] inline footnotes)
-			$environment->addExtension(new \League\CommonMark\Extension\Footnote\FootnoteExtension());
-
-			$parser = new \League\CommonMark\MarkdownConverter($environment);
-
-			if (!empty($markdown_debug_mode)) {
-				$debug_info['parser'] = 'league/commonmark 2.x (GFM + Footnotes)';
-			}
-
-			return $parser;
-
-		case 'parsedown_extra':
-			// ParsedownExtra with inline footnote support
-			if (!class_exists('\ParsedownExtra')) {
-				// Fallback to basic parsedown if ParsedownExtra not available
-				if (!empty($markdown_debug_mode)) {
-					$debug_info['parser_warning'] = 'ParsedownExtra not found, falling back to parsedown';
-				}
-				$markdown_parser = 'parsedown';
-				return init_markdown_parser($debug_info);
-			}
-
-			// Load ParsedownExtraWithInlineFootnotes class
-			if (!class_exists('\ParsedownExtraWithInlineFootnotes')) {
-				$parsedown_path = PLUGIN_DIR . 'vendor/erusev/parsedown/ParsedownExtraWithInlineFootnotes.php';
-				if (file_exists($parsedown_path)) {
-					require_once $parsedown_path;
-				}
-			}
-
-			// Use ParsedownExtraWithInlineFootnotes if available
-			if (class_exists('\ParsedownExtraWithInlineFootnotes')) {
-				$parser = new \ParsedownExtraWithInlineFootnotes();
-				if (!empty($markdown_debug_mode)) {
-					$debug_info['parser'] = 'ParsedownExtraWithInlineFootnotes ' . \ParsedownExtraWithInlineFootnotes::version;
-				}
-			} else {
-				$parser = new \ParsedownExtra();
-				if (!empty($markdown_debug_mode)) {
-					$debug_info['parser'] = 'ParsedownExtra ' . \ParsedownExtra::version;
-					$debug_info['parser_warning'] = 'ParsedownExtraWithInlineFootnotes not found, inline footnotes not supported';
-				}
-			}
-
-			return $parser;
-
-		case 'parsedown':
-		default:
-			// Basic Parsedown (no extensions)
-			if (!class_exists('\Parsedown')) {
-				throw new Exception('Parsedown not found. Please install Parsedown library.');
-			}
-
-			$parser = new \Parsedown();
-
-			if (!empty($markdown_debug_mode)) {
-				$debug_info['parser'] = 'Parsedown ' . \Parsedown::version;
-			}
-
-			return $parser;
-	}
+	return $parser;
 }
 
 /**
@@ -370,7 +306,7 @@ function generate_debug_output($debug_info, $safemode)
 
 function convert_html($lines)
 {
-	global $vars, $digest, $markdown_safemode, $markdown_debug_mode, $use_markdown_cache, $markdown_parser;
+	global $vars, $digest, $markdown_debug_mode, $use_markdown_cache;
 	static $contents_id = 0;
 
 	// Set digest
@@ -401,10 +337,9 @@ function convert_html($lines)
 	$cache_hit = false;
 	$cache_file = null;
 	if (!empty($use_markdown_cache)) {
-		// キャッシュファイル名の生成
+		// キャッシュファイル名の生成（ページ名とダイジェストから）
 		$page_name = isset($vars['page']) ? $vars['page'] : 'unknown';
-		$parser_type = isset($markdown_parser) ? $markdown_parser : 'parsedown';
-		$cache_key = md5($page_name . ':' . $parser_type . ':' . $digest);
+		$cache_key = md5($page_name . ':commonmark:' . $digest);
 		$cache_file = CACHE_DIR . 'markdown_' . $cache_key . '.cache';
 
 		// キャッシュが存在して有効かチェック
@@ -414,14 +349,14 @@ function convert_html($lines)
 			    isset($cached_data['digest']) &&
 			    $cached_data['digest'] === $digest &&
 			    isset($cached_data['parser']) &&
-			    $cached_data['parser'] === $parser_type) {
+			    $cached_data['parser'] === 'commonmark') {
 				// キャッシュヒット
 				$cache_hit = true;
 				if (!empty($markdown_debug_mode)) {
 					$debug_info['cache'] = 'HIT';
 					$debug_info['cache_file'] = basename($cache_file);
 					// デバッグ情報を追加して返す
-					$debug_output = generate_debug_output($debug_info, isset($markdown_safemode) ? (bool)$markdown_safemode : true);
+					$debug_output = generate_debug_output($debug_info, true);
 					return $debug_output . $cached_data['html'];
 				}
 				return $cached_data['html'];
@@ -466,31 +401,18 @@ function convert_html($lines)
 
 	$text = implode("\n", $result_lines);
 
-	// Markdownパーサーでの変換（エラーハンドリング付き）
+	// league/commonmark でのMarkdown変換（エラーハンドリング付き）
 	try {
 		$parser = init_markdown_parser($debug_info);
 
-		// Safemodeの設定（デフォルトは有効）
-		$safemode = isset($markdown_safemode) ? (bool)$markdown_safemode : true;
-
-		// パーサーの種類によってAPIが異なる
-		if (is_a($parser, '\League\CommonMark\MarkdownConverter')) {
-			// league/commonmark: ->convert()->getContent()
-			$result = $parser->convert($text)->getContent();
-		} else {
-			// Parsedown系: ->setSafeMode()->setBreaksEnabled()->text()
-			$result = $parser
-				->setSafeMode($safemode)
-				->setBreaksEnabled(true) // 改行を自動的に<br />に変換
-				->text($text);
-		}
+		// Markdown to HTML conversion
+		$result = $parser->convert($text)->getContent();
 
 		// キャッシュに保存
 		if (!empty($use_markdown_cache) && $cache_file !== null) {
-			$parser_type = isset($markdown_parser) ? $markdown_parser : 'parsedown';
 			$cache_data = array(
 				'digest' => $digest,
-				'parser' => $parser_type,
+				'parser' => 'commonmark',
 				'html' => $result,
 				'timestamp' => time()
 			);
@@ -503,7 +425,7 @@ function convert_html($lines)
 
 		// デバッグ情報を出力
 		if (!empty($markdown_debug_mode) && isset($debug_info['page'])) {
-			$debug_output = generate_debug_output($debug_info, $safemode);
+			$debug_output = generate_debug_output($debug_info, true);
 			$result = $debug_output . $result;
 		}
 
