@@ -224,7 +224,7 @@ node_modules/easymde/dist/easymde.min.js → skin/js/easymde.min.js
 
 ## プラグイン互換性
 
-Markdown記法モードでも、PukiWikiの全てのプラグインが使用可能です。
+Markdown記法モードでも、PukiWikiのほぼ全てのプラグインが使用可能です。
 
 ### ブロックプラグイン（#pluginname / !pluginname）
 
