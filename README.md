@@ -464,3 +464,191 @@ Markdown記法では、デフォルトでプラグイン呼び出しの先頭記
 #### [追加設定項目]
 - `$use_parsedown_extra`: ParsedownExtraの有効/無効を切り替え
 - `$markdown_debug_mode`: デバッグモードの有効/無効を切り替え
+
+---
+
+## 開発者向け情報
+
+このセクションは、コードベースの開発・保守を行う開発者向けの技術情報です。
+
+### システム要件
+
+- **PHP**: 7.4以上（推奨: 8.0以上）
+- **Composer**: league/commonmark 2.xのインストールに使用
+- **Markdownパーサー**: league/commonmark 2.x（GitHub Flavored Markdown完全対応）
+
+### 開発用コマンド
+
+#### PHP構文チェック
+```bash
+# 個別ファイルのチェック
+php -l lib/convert_html.php
+php -l lib/html.php
+php -l plugin/edit.inc.php
+
+# 複数ファイルの一括チェック
+php -l lib/*.php
+```
+
+#### ローカルでの動作確認
+```bash
+# PHPビルトインサーバーで起動
+php -S localhost:8080
+
+# ブラウザで http://localhost:8080 にアクセス
+```
+
+### アーキテクチャ概要
+
+#### コア処理フロー
+
+```
+index.php
+  ↓ (Commonmarkオートローダー読み込み)
+lib/init.php
+  ↓ (グローバル設定読み込み)
+pukiwiki.ini.php (657-720行目: Markdown設定)
+  ↓
+lib/convert_html.php::convert_html()
+  ↓ (記法判定: get_notemd())
+  ├─ Markdown → process_markdown() → league/commonmark
+  │    ↓ (ブロックプラグイン処理)
+  │    └─ process_block_plugin() → do_plugin_convert()
+  │
+  └─ PukiWiki → make_str_rules() → PukiWiki標準パーサー
+```
+
+#### モード切替機構
+
+**中核**: `lib/file.php`の3関数がページのMarkdown/PukiWiki状態を管理
+
+- `add_notemd($page)`: ページ保存時に`#notemd\n`を先頭に挿入
+- `remove_notemd($page)`: ページ保存時に`#notemd\n`を先頭から削除
+- `get_notemd($page)`: ページ読み込み時に`#notemd`の有無を判定
+
+**偽装プラグインとしての`#notemd`**:
+- 実体のプラグインファイル（`plugin/notemd.inc.php`）は存在しない
+- ファイル保存形式のマーカーとして機能
+- PukiWikiパーサーからは無視される（プラグインが存在しないため）
+
+### 主要ファイルと機能
+
+#### 1. `lib/convert_html.php` (281-450行目)
+Markdown処理のメインロジック
+
+**主要関数**:
+- `convert_html($lines, $page, $mode='default')` - メインエントリーポイント
+- `process_markdown($text, $page)` - Markdown→HTML変換
+- `process_block_plugin($html, $page)` - `!plugin` / `#plugin` 構文処理
+- `process_inline_plugin($html, $page)` - `&plugin` 構文処理
+- `is_safe_markdown_url($url)` - URLスキーム検証（http/httpsのみ許可）
+- `format_markdown_error($message, $level='warning')` - 統一エラー表示
+
+#### 2. `lib/html.php` (334-450行目)
+編集UI（EasyMDE統合）
+
+- Markdownチェックボックスの状態を監視してリアルタイム切替
+- PukiWiki記法選択時は通常のtextareaに戻る
+
+#### 3. `lib/file.php`
+`notemd`関連関数（上記参照）
+
+#### 4. `pukiwiki.ini.php` (657-720行目)
+Markdown設定項目の定義
+
+### プラグイン構文の判定ロジック
+
+#### `$markdown_support_hash_plugin = 0`（デフォルト）
+- `!plugin(args)` のみをブロックプラグインとして認識
+- `#` は常にMarkdown見出しとして処理
+
+#### `$markdown_support_hash_plugin = 1`
+- CommonMark仕様により自動判別:
+  - `# 見出し` （`#`の後にスペース） → Markdown見出し
+  - `#plugin(args)` （`#`の後にスペースなし） → プラグイン呼び出し
+- `!plugin(args)` も常に動作（後方互換性）
+
+### キャッシュ機構
+
+**配置**: `cache/markdown/`
+
+**キャッシュキーの生成**:
+```php
+$parser_id = ($markdown_support_hash_plugin == 1)
+    ? 'commonmark-hashplugin'
+    : 'commonmark';
+$cache_key = md5($text) . '-' . $parser_id;
+```
+
+設定変更時に自動的に新しいキャッシュを使用する仕組み。
+
+**有効期限**: デフォルト7日（`$markdown_cache_lifetime`）
+
+### セキュリティ機能
+
+#### URL検証（`is_safe_markdown_url()`）
+- `javascript:`, `data:`, `file:` 等をブロック
+- http/https のみ許可
+
+#### 例外処理
+- 全プラグイン呼び出しをtry-catchで保護
+- エラーが発生してもページ全体がクラッシュしない
+
+#### HTMLエスケープ
+- 全エラーメッセージは`htmlspecialchars()`でエスケープ
+
+### デバッグ方法
+
+#### デバッグモード有効化
+```php
+// pukiwiki.ini.php
+$markdown_debug_mode = 1;
+```
+
+#### 確認すべきHTMLコメント
+- `<!-- Markdown Parser: commonmark or commonmark-hashplugin -->`
+- `<!-- Cache: HIT or MISS -->`
+- `<!-- Block Plugin Called: plugin_name -->`
+- `<!-- Inline Plugin Called: plugin_name -->`
+
+### よくある問題と対処法
+
+#### プラグインが動作しない
+- `plugin/プラグイン名.inc.php`が存在するか確認
+- try-catchでキャッチされたエラーメッセージを確認
+- デバッグモードでHTMLコメントを確認
+
+#### キャッシュが更新されない
+- `cache/markdown/`ディレクトリの書き込み権限を確認
+- `$use_markdown_cache = 0`で一時的に無効化してテスト
+
+#### 見出しがプラグインとして認識される
+- `$markdown_support_hash_plugin = 1`の場合は`#`の後に必ずスペースを入れる
+- `# 見出し` ← OK
+- `#見出し` ← プラグインとして認識される
+
+### Git運用ルール
+
+#### リリース前の必須チェック
+1. `git pull`で最新状態を取得
+2. `php -l`で構文エラー検証
+3. README.mdの更新（変更点を記載）
+4. コミット & プッシュ
+5. タグ作成 & プッシュ
+
+```bash
+# リリース作業例
+git pull
+php -l lib/*.php
+git add .
+git commit -m "バージョン v0.x.x リリース"
+git push origin master
+git tag v0.x.x
+git push origin --tags
+```
+
+### 過去の教訓
+
+- **switch文の構文**: if文とswitch文を混在させない（lib/html.phpで過去にエラー発生）
+- **ドキュメント鮮度管理**: 古い情報を定期的に削除
+- **バージョンタグ**: リリース時は必ずREADME更新とタグ作成をセットで行う
