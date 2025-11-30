@@ -91,6 +91,18 @@ function process_multiline_plugin($line, $lines, &$i, $count)
 {
 	global $markdown_support_hash_plugin;
 
+	// Markdown見出し記法を除外（#pluginサポート有効時のみ）
+	if (!empty($markdown_support_hash_plugin)) {
+		// ##以上（##, ###, ####, #####, ######）は常に見出しとして扱う
+		if (preg_match('/^#{2,6}/', $line)) {
+			return $line; // Not a plugin line (Markdown heading)
+		}
+		// 単一#の後にスペースまたは行末がある場合も見出し
+		if (preg_match('/^#(\s|$)/', $line)) {
+			return $line; // Not a plugin line (Markdown heading)
+		}
+	}
+
 	$prefix = !empty($markdown_support_hash_plugin) ? '[#!]' : '!';
 	if (! PKWKEXP_DISABLE_MULTILINE_PLUGIN_HACK &&
 	    preg_match('/^' . $prefix . '[^{]+(\{\{+)\s*$/', $line, $m)) {
@@ -120,6 +132,22 @@ function process_multiline_plugin($line, $lines, &$i, $count)
 function process_block_plugin($line, &$debug_info)
 {
 	global $markdown_debug_mode, $markdown_support_hash_plugin;
+
+	// Markdown見出し記法を除外（#pluginサポート有効時のみ）
+	if (!empty($markdown_support_hash_plugin)) {
+		// ##以上（##, ###, ####, #####, ######）は常に見出しとして扱う
+		if (preg_match('/^#{2,6}/', $line)) {
+			return null; // Not a plugin line (Markdown heading)
+		}
+		// 単一#の後にスペースがある場合も見出し（# 見出し）
+		if (preg_match('/^#\s/', $line)) {
+			return null; // Not a plugin line (Markdown heading)
+		}
+		// 単一#の後に何もない（行末）場合も見出し
+		if (preg_match('/^#$/', $line)) {
+			return null; // Not a plugin line (Markdown heading)
+		}
+	}
 
 	// 接頭辞パターンを設定に応じて切り替え
 	$prefix = !empty($markdown_support_hash_plugin) ? '[#!]' : '!';
@@ -570,8 +598,8 @@ function convert_html($lines)
 
 	for ($i = 0; $i < $count; $i++) {
 		$line = $lines[$i];
-		// #author,#notemd,#freezeはMarkdown Parserに渡さない
-		$line = preg_replace('/(\#author\(.*\)|\#notemd|\#freeze)/', '', $line);
+		// #author,#notemd,#freezeはMarkdown Parserに渡さない（行頭の単独指定のみ）
+		$line = preg_replace('/^(\#author\(.*\)|\#notemd|\#freeze)\s*$/', '', $line);
 
 		// PukiWiki脚注記法 ((コメント)) を Markdownインライン脚注 ^[コメント] に変換
 		$line = preg_replace('/\(\((.+?)\)\)/', '^[$1]', $line);
