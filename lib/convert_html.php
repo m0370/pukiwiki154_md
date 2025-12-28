@@ -63,16 +63,16 @@ function format_markdown_error($type, $context, $e = null, $debug_mode = false)
  */
 function is_safe_markdown_url($url)
 {
+	if (empty($url)) return false;
+	if (strpos($url, '#') === 0) return true;
+
 	// Parse URL
 	$parsed = parse_url($url);
+	if ($parsed === false) return false;
+	if (!isset($parsed['scheme'])) return true;
 
-	// URLパースに失敗した場合は拒否
-	if ($parsed === false || !isset($parsed['scheme'])) {
-		return false;
-	}
-
-	// スキームのホワイトリストチェック（http/httpsのみ許可）
-	$safe_schemes = array('http', 'https');
+	// スキームのホワイトリストチェック（http/https/mailto/telのみ許可）
+	$safe_schemes = array('http', 'https', 'mailto', 'tel');
 	$scheme = strtolower($parsed['scheme']);
 
 	return in_array($scheme, $safe_schemes, true);
@@ -248,7 +248,7 @@ function process_markdown_links($line, &$debug_info)
 			}
 
 			// タイトルは無視（PukiWikiリンクに変換時）
-			return "[[${text}>${url}]]";
+			return "[[{$text}>{$url}]]";
 		},
 		$line
 	);
@@ -476,13 +476,17 @@ function cleanup_markdown_cache($lifetime)
 
 function convert_html($lines)
 {
-	global $vars, $digest, $markdown_debug_mode, $use_markdown_cache, $markdown_cache_lifetime;
+	global $vars, $digest, $markdown_debug_mode, $use_markdown_cache, $markdown_cache_lifetime,
+		$markdown_support_hash_plugin;
 	static $contents_id = 0;
 
 	// Set digest
 	$digest = md5(join('', get_source($vars['page'])));
 
 	if (! is_array($lines)) $lines = explode("\n", $lines);
+
+	$cache_text = implode("\n", $lines);
+	$cache_digest = md5($cache_text);
 
 	// デバッグモード用の情報収集
 	$debug_info = array();
@@ -511,7 +515,7 @@ function convert_html($lines)
 		// キャッシュファイル名の生成（ページ名とダイジェストから）
 		$page_name = isset($vars['page']) ? $vars['page'] : 'unknown';
 		$parser_mode = !empty($markdown_support_hash_plugin) ? 'commonmark-hashplugin' : 'commonmark';
-		$cache_key = md5($page_name . ':' . $parser_mode . ':' . $digest);
+		$cache_key = md5($page_name . ':' . $parser_mode . ':' . $cache_digest);
 		$cache_file = CACHE_DIR . 'markdown_' . $cache_key . '.cache';
 
 		// キャッシュ読み込み（ファイルロック付き）
@@ -534,7 +538,7 @@ function convert_html($lines)
 						$expected_parser = !empty($markdown_support_hash_plugin) ? 'commonmark-hashplugin' : 'commonmark';
 						if (is_array($cached_data) &&
 						    isset($cached_data['digest']) &&
-						    $cached_data['digest'] === $digest &&
+						    $cached_data['digest'] === $cache_digest &&
 						    isset($cached_data['parser']) &&
 						    $cached_data['parser'] === $expected_parser) {
 
@@ -595,9 +599,30 @@ function convert_html($lines)
 
 	$count = count($lines);
 	$result_lines = array();
+	$fence_char = '';
+	$fence_len = 0;
 
 	for ($i = 0; $i < $count; $i++) {
 		$line = $lines[$i];
+		if (preg_match('/^[ ]{0,3}(`{3,}|~{3,})/', $line, $matches)) {
+			$current_char = $matches[1][0];
+			$current_len = strlen($matches[1]);
+			if ($fence_char === '') {
+				$fence_char = $current_char;
+				$fence_len = $current_len;
+			} elseif ($fence_char === $current_char && $current_len >= $fence_len) {
+				$fence_char = '';
+				$fence_len = 0;
+			}
+			$line = str_replace(array("\r\n","\n","\r"), "", $line);
+			$result_lines[] = $line;
+			continue;
+		}
+		if ($fence_char !== '') {
+			$line = str_replace(array("\r\n","\n","\r"), "", $line);
+			$result_lines[] = $line;
+			continue;
+		}
 		// #author,#notemd,#freezeはMarkdown Parserに渡さない（行頭の単独指定のみ）
 		$line = preg_replace('/^(\#author\(.*\)|\#notemd|\#freeze)\s*$/', '', $line);
 
@@ -640,7 +665,7 @@ function convert_html($lines)
 		if (!empty($use_markdown_cache) && $cache_file !== null) {
 			$parser_mode = !empty($markdown_support_hash_plugin) ? 'commonmark-hashplugin' : 'commonmark';
 			$cache_data = array(
-				'digest' => $digest,
+				'digest' => $cache_digest,
 				'parser' => $parser_mode,
 				'html' => $raw_html,  // 生HTML（脚注未処理）をキャッシュ
 				'timestamp' => time(),
